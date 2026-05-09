@@ -805,15 +805,51 @@ class NavigationEngine: NSObject, ARSessionDelegate, VoiceCommandDelegate {
             speech?.speak("Resuming navigation.", urgency: 6.0)
         case .help:
             // High urgency so it doesn't get blocked by LiDAR alerts
-            speech?.speak("Here are your controls. Double tap to scan. Hold the screen to speak. Swipe left or right to check sides. Voice commands: What's around. Is it safe. Left. Right. Scan. Stop. Resume. Help.", urgency: 10.0)
+            speech?.speak("Here are your controls. Double tap to scan. Hold the screen to speak. Swipe left or right to check sides. Voice commands: What's around. Is it safe. Left. Right. Scan. Read. What color. What bill. Stop. Resume. Help.", urgency: 10.0)
         case .scan:
             speech?.speak("Scanning now.", urgency: 6.0)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
                 self?.describeArea()
             }
+        case .readText:
+            performReadText()
+        case .identifyBill:
+            performIdentifyBill()
+        case .identifyColor:
+            performIdentifyColor()
         case .unknown(let text):
             speech?.speak("Sorry, I didn't catch that. Say help for commands.", urgency: 6.0)
         }
+    }
+
+    // MARK: - Vision Tricks (user-initiated voice commands)
+
+    private func performReadText() {
+        guard let frame = arSession?.currentFrame else {
+            speech?.speak("Camera not ready.", urgency: 7.0); return
+        }
+        speech?.speak("Reading.", urgency: 7.0)
+        VisionTricks.shared.recognizeText(in: frame.capturedImage) { [weak self] text in
+            self?.speech?.speak(text, urgency: 7.0)
+        }
+    }
+
+    private func performIdentifyBill() {
+        guard let frame = arSession?.currentFrame else {
+            speech?.speak("Camera not ready.", urgency: 7.0); return
+        }
+        speech?.speak("Reading bill.", urgency: 7.0)
+        VisionTricks.shared.identifyCurrency(in: frame.capturedImage) { [weak self] result in
+            self?.speech?.speak(result, urgency: 7.0)
+        }
+    }
+
+    private func performIdentifyColor() {
+        guard let frame = arSession?.currentFrame else {
+            speech?.speak("Camera not ready.", urgency: 7.0); return
+        }
+        let color = VisionTricks.shared.identifyColor(in: frame.capturedImage)
+        speech?.speak("That looks \(color).", urgency: 7.0)
     }
 
     private func describeArea() {

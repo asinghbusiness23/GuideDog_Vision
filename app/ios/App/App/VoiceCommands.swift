@@ -10,6 +10,9 @@ enum VoiceCommand {
     case resume
     case help
     case scan
+    case readText
+    case identifyBill
+    case identifyColor
     case unknown(String)
 }
 
@@ -171,6 +174,14 @@ class VoiceCommandController: NSObject {
     }
 
     private func parseCommand(_ transcript: String) -> VoiceCommand {
+        // Vision tricks first — these contain words that could collide
+        // with the more general commands below.
+        if transcript.contains("color") || transcript.contains("colour") { return .identifyColor }
+        if transcript.contains("bill") || transcript.contains("dollar") ||
+           transcript.contains("money") || transcript.contains("cash") ||
+           transcript.contains("currency") { return .identifyBill }
+        if transcript.contains("read") { return .readText }
+
         if transcript.contains("around") || transcript.contains("describe") || transcript.contains("surroundings") { return .whatsAround }
         if transcript.contains("safe") || transcript.contains("clear") { return .isSafe }
         if transcript.contains("left") { return .checkLeft }
