@@ -62,6 +62,11 @@ class NavigationEngine: NSObject, ARSessionDelegate, VoiceCommandDelegate {
 
     private let detectionQueue = DispatchQueue(label: "com.blindguide.detection", qos: .userInitiated)
 
+    // AR breadcrumb — "remember this spot" / "take me back"
+    private var savedAnchor: ARAnchor?
+    private var guideBackTimer: Timer?
+    private var lastGuideAnnouncement: (distance: Float, time: TimeInterval) = (0, 0)
+
     // MARK: - Init
 
     override init() {
@@ -171,6 +176,7 @@ class NavigationEngine: NSObject, ARSessionDelegate, VoiceCommandDelegate {
         isRunning = false
         haptics?.stop()
         spatialAudio?.stopAll()
+        cancelGuideBackTimer()
         print("🛑 NavigationEngine stopped")
     }
 
@@ -279,6 +285,13 @@ class NavigationEngine: NSObject, ARSessionDelegate, VoiceCommandDelegate {
         centerBand = 0
         sLeft = nil; sCenter = nil; sRight = nil
         currentRiskL = .safe; currentRiskC = .safe; currentRiskR = .safe
+        // World coordinates may have shifted; the saved breadcrumb is no longer
+        // trustworthy. Drop it and ask the user to re-mark.
+        if savedAnchor != nil {
+            savedAnchor = nil
+            cancelGuideBackTimer()
+            speech?.speak("Lost the saved spot after the camera reset. Mark it again.", urgency: 6.0)
+        }
     }
 
     // MARK: - Depth Processing
@@ -825,7 +838,7 @@ class NavigationEngine: NSObject, ARSessionDelegate, VoiceCommandDelegate {
             speech?.speak("Resuming navigation.", urgency: 6.0)
         case .help:
             // High urgency so it doesn't get blocked by LiDAR alerts
-            speech?.speak("Here are your controls. Double tap to scan. Hold the screen to speak. Swipe left or right to check sides. Voice commands: What's around. Is it safe. Left. Right. Scan. Read. What color. What bill. Stop. Resume. Help.", urgency: 10.0)
+            speech?.speak("Here are your controls. Double tap to scan. Hold the screen to speak. Swipe left or right to check sides. Voice commands: What's around. Is it safe. Left. Right. Scan. Read. What color. What bill. Remember this. Take me back. Stop. Resume. Help.", urgency: 10.0)
         case .scan:
             speech?.speak("Scanning now.", urgency: 6.0)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
@@ -837,9 +850,128 @@ class NavigationEngine: NSObject, ARSessionDelegate, VoiceCommandDelegate {
             performIdentifyBill()
         case .identifyColor:
             performIdentifyColor()
+        case .rememberSpot:
+            rememberCurrentSpot()
+        case .guideBack:
+            guideToSavedSpot()
         case .unknown(let text):
             speech?.speak("Sorry, I didn't catch that. Say help for commands.", urgency: 6.0)
         }
+    }
+
+    // MARK: - AR Breadcrumb ("remember this" / "take me back")
+
+    /// Save the user's current pose as an ARAnchor so we can guide them back later.
+    /// Replaces any previously saved spot.
+    private func rememberCurrentSpot() {
+        guard let session = arSession, let frame = session.currentFrame else {
+            speech?.speak("Cannot remember spot. Camera not ready.", urgency: 7.0)
+            return
+        }
+        if let old = savedAnchor { session.remove(anchor: old) }
+        let anchor = ARAnchor(name: "savedSpot", transform: frame.camera.transform)
+        session.add(anchor: anchor)
+        savedAnchor = anchor
+        speech?.speak("Spot saved. Say take me back to return here.", urgency: 7.0)
+    }
+
+    /// Speak the distance + bearing back to the saved spot, and start a periodic
+    /// re-announcement timer so the user hears updates as they walk.
+    private func guideToSavedSpot() {
+        guard savedAnchor != nil else {
+            speech?.speak("No saved spot. Say remember this first to mark your location.", urgency: 7.0)
+            return
+        }
+        cancelGuideBackTimer()
+        speech?.speak("Guiding you back.", urgency: 7.0)
+        // First announcement after a short delay so the prompt above can finish.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.announceGuidanceStep(initial: true)
+        }
+        // Re-announce every 3.5s while we're still navigating.
+        let t = Timer.scheduledTimer(withTimeInterval: 3.5, repeats: true) { [weak self] _ in
+            self?.announceGuidanceStep(initial: false)
+        }
+        RunLoop.main.add(t, forMode: .common)
+        guideBackTimer = t
+    }
+
+    private func cancelGuideBackTimer() {
+        guideBackTimer?.invalidate()
+        guideBackTimer = nil
+        lastGuideAnnouncement = (0, 0)
+    }
+
+    /// Compute distance + bearing to the saved anchor and speak it. Stops the
+    /// timer once we're within 0.5 m.
+    private func announceGuidanceStep(initial: Bool) {
+        guard let session = arSession,
+              let anchor = savedAnchor,
+              let frame = session.currentFrame else {
+            cancelGuideBackTimer()
+            speech?.speak("Lost saved spot. Say remember this again.", urgency: 7.0)
+            return
+        }
+
+        let camTransform = frame.camera.transform
+        let camPos = SIMD3<Float>(camTransform.columns.3.x,
+                                   camTransform.columns.3.y,
+                                   camTransform.columns.3.z)
+        let anchorPos = SIMD3<Float>(anchor.transform.columns.3.x,
+                                      anchor.transform.columns.3.y,
+                                      anchor.transform.columns.3.z)
+        let toAnchor = anchorPos - camPos
+
+        // Project to horizontal plane (ignore vertical so steps/elevation don't skew the bearing).
+        let dx = toAnchor.x, dz = toAnchor.z
+        let horizDist = sqrt(dx * dx + dz * dz)
+
+        // Arrived?
+        if horizDist < 0.6 {
+            speech?.speak("You arrived. Back at the saved spot.", urgency: 7.0)
+            cancelGuideBackTimer()
+            return
+        }
+
+        // Build the user's forward + right vectors in world space (horizontal).
+        let camForward = -SIMD3<Float>(camTransform.columns.2.x,
+                                        camTransform.columns.2.y,
+                                        camTransform.columns.2.z)
+        let camRight = SIMD3<Float>(camTransform.columns.0.x,
+                                     camTransform.columns.0.y,
+                                     camTransform.columns.0.z)
+
+        let fwdH = simd_normalize(SIMD2<Float>(camForward.x, camForward.z))
+        let rightH = simd_normalize(SIMD2<Float>(camRight.x, camRight.z))
+        let toH = simd_normalize(SIMD2<Float>(dx, dz))
+
+        // forwardDot = 1 → ahead; -1 → behind.
+        // rightDot   = 1 → on right; -1 → on left.
+        let forwardDot = simd_dot(fwdH, toH)
+        let rightDot   = simd_dot(rightH, toH)
+
+        // Signed angle from "where you face" to "where the anchor is".
+        // Positive = anchor is to your right; negative = to your left.
+        let angleDeg = atan2(rightDot, forwardDot) * 180 / .pi
+
+        let direction: String
+        let absA = abs(angleDeg)
+        if absA < 20      { direction = "straight ahead" }
+        else if absA < 60 { direction = angleDeg > 0 ? "slightly right" : "slightly left" }
+        else if absA < 120 { direction = angleDeg > 0 ? "to your right" : "to your left" }
+        else if absA < 160 { direction = angleDeg > 0 ? "behind you on the right" : "behind you on the left" }
+        else              { direction = "directly behind you" }
+
+        let feet = max(1, Int((horizDist * 3.28084).rounded()))
+
+        // Suppress an update if nothing meaningful changed.
+        let now = CACurrentMediaTime()
+        let dd = abs(horizDist - lastGuideAnnouncement.distance)
+        let dt = now - lastGuideAnnouncement.time
+        if !initial && dd < 0.4 && dt < 6.0 { return }
+
+        speech?.speak("\(feet) feet, \(direction).", urgency: 6.0)
+        lastGuideAnnouncement = (horizDist, now)
     }
 
     // MARK: - Vision Tricks (user-initiated voice commands)

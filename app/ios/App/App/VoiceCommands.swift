@@ -13,6 +13,8 @@ enum VoiceCommand {
     case readText
     case identifyBill
     case identifyColor
+    case rememberSpot
+    case guideBack
     case unknown(String)
 }
 
@@ -174,7 +176,21 @@ class VoiceCommandController: NSObject {
     }
 
     private func parseCommand(_ transcript: String) -> VoiceCommand {
-        // Vision tricks first — these contain words that could collide
+        // AR breadcrumb — match before generic "stop"/"resume"/"go" rules so
+        // "take me back" / "go back" don't get eaten.
+        if transcript.contains("take me back") ||
+           transcript.contains("guide me back") ||
+           transcript.contains("guide back") ||
+           transcript.contains("lead me back") ||
+           transcript.contains("walk me back") {
+            return .guideBack
+        }
+        if transcript.contains("remember") || transcript.contains("save spot") ||
+           transcript.contains("mark spot") || transcript.contains("save this spot") {
+            return .rememberSpot
+        }
+
+        // Vision tricks — these contain words that could collide
         // with the more general commands below.
         if transcript.contains("color") || transcript.contains("colour") { return .identifyColor }
         if transcript.contains("bill") || transcript.contains("dollar") ||
