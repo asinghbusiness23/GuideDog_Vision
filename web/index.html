@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#000000">
@@ -10,7 +10,7 @@
     <link rel="manifest" href="manifest.json">
     
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
         html, body { height: 100%; overflow: hidden; background: #000; color: #fff; font-family: -apple-system, sans-serif; }
         
         .app { height: 100dvh; display: flex; flex-direction: column; position: relative; }
@@ -42,7 +42,7 @@
         .status-bar {
             padding: 15px;
             padding-top: max(15px, env(safe-area-inset-top));
-            background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+            background: rgba(0,0,0,0.85);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -85,22 +85,22 @@
             border-radius: 20px;
             text-align: center;
             margin-bottom: 20px;
-            transition: none;
+            transition: all 0.3s;
         }
-        
+
         .alert-box.safe {
-            background: rgba(0, 255, 136, 0.2);
+            background: rgba(0, 40, 20, 0.8);
             border: 3px solid #0f8;
         }
-        
+
         .alert-box.warning {
-            background: rgba(255, 170, 0, 0.3);
+            background: rgba(50, 30, 0, 0.85);
             border: 3px solid #fa0;
             animation: pulse 1s infinite;
         }
-        
+
         .alert-box.danger {
-            background: rgba(255, 68, 68, 0.4);
+            background: rgba(60, 10, 10, 0.9);
             border: 4px solid #f44;
             animation: shake 0.3s infinite;
         }
@@ -145,18 +145,21 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 30px;
-            opacity: 0.5;
+            font-size: 16px;
+            font-weight: bold;
+            opacity: 0.7;
+            color: #fff;
             transition: all 0.2s;
         }
-        
+
         .direction-btn.active {
             opacity: 1;
             border-color: #fa0;
             background: rgba(255,170,0,0.3);
         }
-        
+
         .direction-btn.danger {
+            opacity: 1;
             border-color: #f44;
             background: rgba(255,68,68,0.4);
             animation: pulse 0.3s infinite;
@@ -166,7 +169,7 @@
         .control-bar {
             padding: 15px;
             padding-bottom: max(15px, env(safe-area-inset-bottom));
-            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+            background: rgba(0,0,0,0.85);
             display: flex;
             gap: 10px;
         }
@@ -183,7 +186,7 @@
             align-items: center;
             justify-content: center;
             gap: 5px;
-            background: rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.2);
             color: #fff;
         }
         
@@ -244,7 +247,21 @@
         .help-label { font-size: 16px; font-weight: 700; color: #48f; }
         .help-desc { font-size: 14px; color: #aaa; margin-top: 5px; }
         .help-close { margin-top: 20px; padding: 20px; background: #48f; border: none; border-radius: 15px; color: #fff; font-size: 18px; font-weight: 700; }
+        .help-item.toggle { cursor: pointer; }
+        .help-item.toggle:active { background: #1a1a1a; }
         .version-tag { position: fixed; bottom: max(6px, env(safe-area-inset-bottom)); right: 8px; font-size: 10px; color: rgba(255,255,255,0.3); z-index: 5; pointer-events: none; }
+
+        /* Colorblind-friendly palette (Okabe-Ito CUD) for protanopia / deuteranopia.
+           Replaces red/green with vermillion / bluish-green which stay distinguishable
+           in red-green color blindness (~6% of males). Toggle via help dialog. */
+        body.colorblind .badge-safe    { background: #009E73; color: #fff; }
+        body.colorblind .badge-warning { background: #E69F00; color: #000; }
+        body.colorblind .badge-danger  { background: #D55E00; color: #fff; }
+        body.colorblind .alert-box.safe    { background: rgba(0, 60, 45, 0.85);   border-color: #009E73; }
+        body.colorblind .alert-box.warning { background: rgba(60, 40, 0, 0.85);   border-color: #E69F00; }
+        body.colorblind .alert-box.danger  { background: rgba(60, 25, 0, 0.9);    border-color: #D55E00; }
+        body.colorblind .direction-btn.active { border-color: #E69F00; background: rgba(230, 159, 0, 0.30); }
+        body.colorblind .direction-btn.danger { border-color: #D55E00; background: rgba(213, 94, 0, 0.40); }
     </style>
 </head>
 <body>
@@ -284,7 +301,7 @@
         
         <div class="help-item">
             <div class="help-label">Voice Commands (tap mic button)</div>
-            <div class="help-desc">"What's around" - describe area<br>"Is it safe" - check path<br>"Left" / "Right" - check sides<br>"Stop" / "Resume" - pause alerts</div>
+            <div class="help-desc">"What's around" - describe area<br>"Is it safe" - check path<br>"Left" / "Right" - check sides<br>"Read this" - read text aloud<br>"What color" - name a color<br>"What bill" - identify US currency<br>"Stop" / "Resume" - pause alerts</div>
         </div>
         
         <div class="help-item">
@@ -296,7 +313,12 @@
             <div class="help-label">Alert Sounds</div>
             <div class="help-desc">Beeps indicate direction of obstacle<br>Fast beeps = DANGER, very close!<br>Vibration = obstacle in your path</div>
         </div>
-        
+
+        <div class="help-item toggle" id="colorblindToggleItem" role="button" aria-pressed="false">
+            <div class="help-label">Colorblind Mode <span id="cbStatus">— off</span></div>
+            <div class="help-desc">Tap to switch alert colors to a red-green colorblind-friendly palette.</div>
+        </div>
+
         <button class="help-close" id="helpClose">START - TAP HERE OR SAY "START"</button>
     </div>
     
@@ -395,7 +417,7 @@
         // Objects that matter for navigation
         CRITICAL: ["car", "bus", "truck", "motorcycle", "bicycle"],
         OBSTACLES: ["person", "chair", "bench", "couch", "bed", "dining table",
-                    "refrigerator", "potted plant", "backpack",
+                    "refrigerator", "backpack",
                     "fire hydrant", "stop sign", "parking meter", "laptop", "tv"]
     };
     
@@ -720,11 +742,28 @@
             return;
         }
         
+        // Vision tricks — match before generic "what" so "what color" / "what bill"
+        // aren't eaten by describeArea below.
+        if (text.includes('color') || text.includes('colour')) {
+            webIdentifyColor();
+            return;
+        }
+        if (text.includes('bill') || text.includes('dollar') ||
+            text.includes('money') || text.includes('cash') ||
+            text.includes('currency')) {
+            webIdentifyCurrency();
+            return;
+        }
+        if (text.includes('read')) {
+            webRecognizeText();
+            return;
+        }
+
         if (text.includes('around') || text.includes('describe') || text.includes('what')) {
             describeArea();
             return;
         }
-        
+
         if (text.includes('safe') || text.includes('clear') || text.includes('walk')) {
             checkSafety();
             return;
@@ -1709,7 +1748,162 @@
             speak('Scan complete. No additional hazards detected.', true);
         }
     }
-    
+
+    // ========== VISION TRICKS (read / color / bill) ==========
+    // All three run on-device. Color is pure pixel math; OCR + bill use
+    // Tesseract.js, lazy-loaded on first use.
+
+    function captureFrameCanvas() {
+        const v = state.video;
+        if (!v || !v.videoWidth) return null;
+        const canvas = document.createElement('canvas');
+        canvas.width = v.videoWidth;
+        canvas.height = v.videoHeight;
+        canvas.getContext('2d').drawImage(v, 0, 0);
+        return canvas;
+    }
+
+    let _tesseractWorker = null;
+    let _tesseractLoading = null;
+    async function getTesseractWorker() {
+        if (_tesseractWorker) return _tesseractWorker;
+        if (_tesseractLoading) return _tesseractLoading;
+
+        _tesseractLoading = (async () => {
+            try {
+                if (!window.Tesseract) {
+                    await new Promise((resolve, reject) => {
+                        const s = document.createElement('script');
+                        s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+                        s.onload = resolve;
+                        s.onerror = reject;
+                        document.head.appendChild(s);
+                    });
+                }
+                _tesseractWorker = await window.Tesseract.createWorker('eng');
+                return _tesseractWorker;
+            } catch (e) {
+                console.error('Tesseract load failed:', e);
+                _tesseractLoading = null;
+                return null;
+            }
+        })();
+        return _tesseractLoading;
+    }
+
+    function classifyColorRGB(r, g, b) {
+        // r/g/b in 0..1
+        const maxC = Math.max(r, g, b);
+        const minC = Math.min(r, g, b);
+        const l = (maxC + minC) / 2;
+        const delta = maxC - minC;
+
+        if (delta < 0.08) {
+            if (l < 0.12) return 'black';
+            if (l < 0.35) return 'dark gray';
+            if (l < 0.65) return 'gray';
+            if (l < 0.88) return 'light gray';
+            return 'white';
+        }
+
+        let h;
+        if (maxC === r)      h = ((g - b) / delta) + (g < b ? 6 : 0);
+        else if (maxC === g) h = ((b - r) / delta) + 2;
+        else                 h = ((r - g) / delta) + 4;
+        h *= 60;
+
+        const lightPrefix = l < 0.28 ? 'dark ' : (l > 0.78 ? 'light ' : '');
+
+        if (h < 12 || h >= 348) return lightPrefix + 'red';
+        if (h < 40)             return lightPrefix + 'orange';
+        if (h < 65)             return lightPrefix + 'yellow';
+        if (h < 165)            return lightPrefix + 'green';
+        if (h < 200)            return lightPrefix + 'teal';
+        if (h < 255)            return lightPrefix + 'blue';
+        if (h < 290)            return lightPrefix + 'purple';
+        return lightPrefix + 'pink';
+    }
+
+    function webIdentifyColor() {
+        const canvas = captureFrameCanvas();
+        if (!canvas) { speak('Camera not ready.', true); return; }
+
+        const ctx = canvas.getContext('2d');
+        const w = Math.floor(canvas.width * 0.3);
+        const h = Math.floor(canvas.height * 0.3);
+        const x = Math.floor((canvas.width - w) / 2);
+        const y = Math.floor((canvas.height - h) / 2);
+        const data = ctx.getImageData(x, y, w, h).data;
+
+        let rs = 0, gs = 0, bs = 0;
+        const n = data.length / 4;
+        for (let i = 0; i < data.length; i += 4) {
+            rs += data[i]; gs += data[i + 1]; bs += data[i + 2];
+        }
+        const color = classifyColorRGB(rs / n / 255, gs / n / 255, bs / n / 255);
+        speak(`That looks ${color}.`, true);
+    }
+
+    async function webRecognizeText() {
+        const canvas = captureFrameCanvas();
+        if (!canvas) { speak('Camera not ready.', true); return; }
+
+        speak('Reading.', true);
+        const worker = await getTesseractWorker();
+        if (!worker) { speak('Reading not available right now.', true); return; }
+
+        try {
+            const { data } = await worker.recognize(canvas);
+            const text = (data.text || '').trim().replace(/\s+/g, ' ');
+            if (!text) { speak('No text found.', true); return; }
+            const trimmed = text.length > 240 ? text.slice(0, 240) + '…' : text;
+            speak(trimmed, true);
+        } catch (e) {
+            console.error('OCR error:', e);
+            speak('Could not read text.', true);
+        }
+    }
+
+    async function webIdentifyCurrency() {
+        const canvas = captureFrameCanvas();
+        if (!canvas) { speak('Camera not ready.', true); return; }
+
+        speak('Reading bill.', true);
+        const worker = await getTesseractWorker();
+        if (!worker) { speak('Bill reader not available right now.', true); return; }
+
+        try {
+            const { data } = await worker.recognize(canvas);
+            const text = (data.text || '').toUpperCase();
+
+            const hasMarker =
+                text.includes('FEDERAL RESERVE') ||
+                text.includes('UNITED STATES') ||
+                text.includes('DOLLARS');
+
+            const denoms = [
+                { d: '100', w: 'HUNDRED', s: 'one hundred dollars' },
+                { d: '50',  w: 'FIFTY',   s: 'fifty dollars' },
+                { d: '20',  w: 'TWENTY',  s: 'twenty dollars' },
+                { d: '10',  w: 'TEN',     s: 'ten dollars' },
+                { d: '5',   w: 'FIVE',    s: 'five dollars' },
+                { d: '1',   w: 'ONE',     s: 'one dollar' },
+            ];
+
+            for (const { d, w, s } of denoms) {
+                const re = new RegExp(`\\b${d}\\b`);
+                if (re.test(text) && (text.includes(w) || hasMarker)) {
+                    speak(s + '.', true);
+                    return;
+                }
+            }
+            speak('Cannot identify the bill. Hold it flat with the front facing the camera.', true);
+        } catch (e) {
+            console.error('Bill OCR error:', e);
+            speak('Could not read bill.', true);
+        }
+    }
+
     // ========== GESTURES ==========
     function setupGestures() {
         const area = document.getElementById('alertArea');
@@ -1767,12 +1961,36 @@
         fastHazardLoop();
     }
 
+    // ========== COLORBLIND PALETTE ==========
+    function setColorblind(enabled) {
+        document.body.classList.toggle('colorblind', !!enabled);
+        const item = document.getElementById('colorblindToggleItem');
+        const status = document.getElementById('cbStatus');
+        if (item) item.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+        if (status) status.textContent = enabled ? '— on' : '— off';
+        try { localStorage.setItem('cb', enabled ? '1' : '0'); } catch (e) {}
+    }
+    function initColorblind() {
+        let enabled = false;
+        try { enabled = localStorage.getItem('cb') === '1'; } catch (e) {}
+        setColorblind(enabled);
+        const item = document.getElementById('colorblindToggleItem');
+        if (item) {
+            item.addEventListener('click', () => {
+                const next = !document.body.classList.contains('colorblind');
+                setColorblind(next);
+                speak(next ? 'Colorblind mode on.' : 'Colorblind mode off.', true);
+            });
+        }
+    }
+
     // ========== INIT ==========
     async function init() {
         state.video = document.getElementById('video');
         initAudio();
         initSpeechRecognition();
         setupGestures();
+        initColorblind();
 
         document.getElementById('helpClose').addEventListener('click', hideHelp);
         const privacyNotice = document.getElementById('privacyNotice');

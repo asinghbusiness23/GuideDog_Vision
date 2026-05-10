@@ -80,6 +80,11 @@
             align-items: center;
             justify-content: center;
             gap: 1px;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .cam-toggle.on {
+            background: rgba(0, 200, 120, 0.45);
+            border-color: rgba(0, 220, 140, 0.9);
         }
 
         .gesture-hint {
@@ -270,7 +275,19 @@
         .help-label { font-size: 16px; font-weight: 700; color: #48f; }
         .help-desc { font-size: 14px; color: #aaa; margin-top: 5px; }
         .help-close { margin-top: 20px; padding: 20px; background: #48f; border: none; border-radius: 15px; color: #fff; font-size: 18px; font-weight: 700; }
+        .help-item.toggle { cursor: pointer; }
+        .help-item.toggle:active { background: #1a1a1a; }
         .version-tag { position: fixed; bottom: max(6px, env(safe-area-inset-bottom)); right: 8px; font-size: 10px; color: rgba(255,255,255,0.3); z-index: 5; pointer-events: none; }
+
+        /* Colorblind-friendly palette (Okabe-Ito CUD) for protanopia / deuteranopia. */
+        body.colorblind .badge-safe    { background: #009E73; color: #fff; }
+        body.colorblind .badge-warning { background: #E69F00; color: #000; }
+        body.colorblind .badge-danger  { background: #D55E00; color: #fff; }
+        body.colorblind .alert-box.safe    { background: rgba(0, 60, 45, 0.85);   border-color: #009E73; }
+        body.colorblind .alert-box.warning { background: rgba(60, 40, 0, 0.85);   border-color: #E69F00; }
+        body.colorblind .alert-box.danger  { background: rgba(60, 25, 0, 0.9);    border-color: #D55E00; }
+        body.colorblind .direction-btn.active { border-color: #E69F00; background: rgba(230, 159, 0, 0.30); }
+        body.colorblind .direction-btn.danger { border-color: #D55E00; background: rgba(213, 94, 0, 0.40); }
     </style>
 </head>
 <body>
@@ -346,6 +363,11 @@
             <div class="help-desc">Tap the CAM button (top right) to toggle the camera view on or off. Useful for sighted helpers to see what the app sees. Camera is off by default to save battery.</div>
         </div>
 
+        <div class="help-item toggle" id="colorblindToggleItem" role="button" aria-pressed="false">
+            <div class="help-label">COLORBLIND MODE <span id="cbStatus">— off</span></div>
+            <div class="help-desc">Tap to switch alert colors to a red-green colorblind-friendly palette.</div>
+        </div>
+
         <button class="help-close" id="helpClose">START GUIDEDOG</button>
         <div style="text-align:center;color:#888;font-size:13px;margin-top:10px;">Tap anywhere to start</div>
     </div>
@@ -363,7 +385,10 @@
                 <div class="status-badge" id="statusBadge" style="display:none;">SAFE</div>
                 <div class="ai-badge" id="aiBadge" aria-hidden="true">AI Active</div>
                 <button class="cam-toggle" id="btnCam" aria-label="Toggle camera on or off">
-                    <span id="camIcon" style="font-size:18px;">&#128247;</span>
+                    <svg id="camIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                        <circle cx="12" cy="13" r="4"/>
+                    </svg>
                     <span style="font-size:9px;">CAM</span>
                 </button>
             </div>
@@ -435,7 +460,7 @@
         // Objects that matter for navigation
         CRITICAL: ["car", "bus", "truck", "motorcycle", "bicycle"],
         OBSTACLES: ["person", "chair", "bench", "couch", "bed", "dining table",
-                    "refrigerator", "potted plant", "suitcase", "backpack",
+                    "refrigerator", "suitcase", "backpack",
                     "fire hydrant", "stop sign", "parking meter",
                     "microwave", "laptop", "tv"]
     };
@@ -1744,13 +1769,15 @@
             lastTap = now;
         }, { passive: true });
 
-        // Camera toggle (top right button)
+        // Camera toggle (top right button) — SVG icon is static; the button's
+        // .on class highlights the active state instead of swapping the glyph.
         const camBtn = document.getElementById('btnCam');
         if (camBtn && isNative) {
             let camOn = false;
             camBtn.addEventListener('click', () => {
                 camOn = !camOn;
-                document.getElementById('camIcon').textContent = camOn ? 'OFF' : '\u{1F4F7}';
+                camBtn.classList.toggle('on', camOn);
+                camBtn.setAttribute('aria-pressed', camOn ? 'true' : 'false');
                 if (window.webkit && window.webkit.messageHandlers.cameraToggle) {
                     window.webkit.messageHandlers.cameraToggle.postMessage(camOn);
                 }
@@ -1824,6 +1851,30 @@
     }
     
     // ========== INIT ==========
+    function setColorblind(enabled) {
+        document.body.classList.toggle('colorblind', !!enabled);
+        const item = document.getElementById('colorblindToggleItem');
+        const status = document.getElementById('cbStatus');
+        if (item) item.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+        if (status) status.textContent = enabled ? '— on' : '— off';
+        try { localStorage.setItem('cb', enabled ? '1' : '0'); } catch (e) {}
+    }
+    function initColorblind() {
+        let enabled = false;
+        try { enabled = localStorage.getItem('cb') === '1'; } catch (e) {}
+        setColorblind(enabled);
+        const item = document.getElementById('colorblindToggleItem');
+        if (item) {
+            item.addEventListener('click', () => {
+                const next = !document.body.classList.contains('colorblind');
+                setColorblind(next);
+                if (typeof speak === 'function') {
+                    speak(next ? 'Colorblind mode on.' : 'Colorblind mode off.', true);
+                }
+            });
+        }
+    }
+
     async function init() {
         console.log('JS: init() starting');
         state.video = document.getElementById('video');
@@ -1832,6 +1883,7 @@
         // AVAudioSession is activated by ViewController.swift on viewDidLoad
         initSpeechRecognition();
         setupGestures();
+        initColorblind();
 
         document.getElementById('helpClose').addEventListener('click', hideHelp);
 

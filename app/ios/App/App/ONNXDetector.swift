@@ -39,7 +39,7 @@ public class ONNXDetector {
     static let safetyRelevantCoco: Set<String> = [
         "person", "bicycle", "car", "motorcycle", "bus", "truck", "train", "bench",
         "dog", "cat", "bird", "backpack", "suitcase", "handbag", "umbrella",
-        "chair", "couch", "potted plant", "bed", "dining table", "toilet",
+        "chair", "couch", "bed", "dining table", "toilet",
         "bottle", "cup", "knife", "scissors", "laptop", "cell phone", "book",
         "fire hydrant", "stop sign", "parking meter", "traffic light",
         "microwave", "oven", "toaster", "sink", "refrigerator",

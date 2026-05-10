@@ -28,6 +28,8 @@
 		AA00010D2F900001000000001 /* ObjectDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00010C2F900001000000001 /* ObjectDetector.swift */; };
 		AA00010F2F900001000000001 /* MeshClassifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00010E2F900001000000001 /* MeshClassifier.swift */; };
 		AA0001112F900001000000001 /* SceneSegmenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001102F900001000000001 /* SceneSegmenter.swift */; };
+		AA0001172F900001000000001 /* VisionTricks.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001162F900001000000001 /* VisionTricks.swift */; };
+		AA0001192F900001000000001 /* DepthOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001182F900001000000001 /* DepthOverlayView.swift */; };
 		AA0001132F900001000000001 /* YOLOv8n.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = AA0001122F900001000000001 /* YOLOv8n.mlpackage */; };
 		AA0001152F900001000000001 /* DeepLabV3.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = AA0001142F900001000000001 /* DeepLabV3.mlpackage */; };
 /* End PBXBuildFile section */
@@ -57,6 +59,8 @@
 		AA00010C2F900001000000001 /* ObjectDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjectDetector.swift; sourceTree = "<group>"; };
 		AA00010E2F900001000000001 /* MeshClassifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeshClassifier.swift; sourceTree = "<group>"; };
 		AA0001102F900001000000001 /* SceneSegmenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneSegmenter.swift; sourceTree = "<group>"; };
+		AA0001162F900001000000001 /* VisionTricks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionTricks.swift; sourceTree = "<group>"; };
+		AA0001182F900001000000001 /* DepthOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepthOverlayView.swift; sourceTree = "<group>"; };
 		AA0001122F900001000000001 /* YOLOv8n.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = wrapper.mlpackage; path = YOLOv8n.mlpackage; sourceTree = "<group>"; };
 		AA0001142F900001000000001 /* DeepLabV3.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = wrapper.mlpackage; path = DeepLabV3.mlpackage; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -105,6 +109,8 @@
 				AA0001062F900001000000001 /* AudioFeedback.swift */,
 				AA0001082F900001000000001 /* HapticFeedback.swift */,
 				AA00010A2F900001000000001 /* VoiceCommands.swift */,
+				AA0001162F900001000000001 /* VisionTricks.swift */,
+				AA0001182F900001000000001 /* DepthOverlayView.swift */,
 				2D5E4A8E2F8177C000375917 /* AudioPlugin.swift */,
 				2D5E4A8F2F8177C000375917 /* GuideDogPlugins.m */,
 				2D5E4A902F8177C000375917 /* LiDARPlugin.swift */,
@@ -214,6 +220,8 @@
 				AA00010D2F900001000000001 /* ObjectDetector.swift in Sources */,
 				AA00010F2F900001000000001 /* MeshClassifier.swift in Sources */,
 				AA0001112F900001000000001 /* SceneSegmenter.swift in Sources */,
+				AA0001172F900001000000001 /* VisionTricks.swift in Sources */,
+				AA0001192F900001000000001 /* DepthOverlayView.swift in Sources */,
 				2D5E4A912F8177C000375917 /* AudioPlugin.swift in Sources */,
 				2D5E4A922F8177C000375917 /* GuideDogPlugins.m in Sources */,
 				2D5E4A932F8177C000375917 /* LiDARPlugin.swift in Sources */,
@@ -372,7 +380,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_TEAM = UM7GGY22S3;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -380,7 +388,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.2;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = com.guidedog.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -400,7 +408,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_TEAM = UM7GGY22S3;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -408,7 +416,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.guidedog.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

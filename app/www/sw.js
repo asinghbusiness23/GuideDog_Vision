@@ -1,4 +1,4 @@
-const CACHE = 'guidedog-v8';      // bumped — build 17: NavigationEngine integration, skip getUserMedia in native
+const CACHE = 'guidedog-v9';      // bumped — colorblind toggle, SVG cam icon, no potted plant
 const CDN_CACHE = 'guidedog-cdn-v1';
 
 const APP_SHELL = ['/GuideDog/', '/GuideDog/index.html', '/GuideDog/manifest.json'];

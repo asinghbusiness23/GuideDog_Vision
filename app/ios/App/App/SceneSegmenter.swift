@@ -67,10 +67,10 @@ class SceneSegmenter {
             switch self {
             case .person, .bicycle, .car, .bus, .motorbike:
                 return true  // Moving hazards
-            case .chair, .diningTable, .sofa, .pottedPlant, .tvMonitor:
+            case .chair, .diningTable, .sofa, .tvMonitor:
                 return true  // Static obstacles
-            case .dog, .cat, .horse, .cow, .sheep, .train:
-                return false // Not relevant for walking
+            case .dog, .cat, .horse, .cow, .sheep, .train, .pottedPlant:
+                return false // Not relevant for walking (plants are noise, not hazards)
             case .background, .aeroplane, .boat, .bird, .bottle:
                 return false
             }

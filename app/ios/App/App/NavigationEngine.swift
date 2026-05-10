@@ -30,6 +30,7 @@ class NavigationEngine: NSObject, ARSessionDelegate, VoiceCommandDelegate {
     var onDepthUpdate: ((Float, Float, Float) -> Void)?   // (center, left, right) in metres
     var onCameraFrame: ((CVPixelBuffer) -> Void)?          // ~1/sec for JS preview & AI
     var onDetectionEvent: ((String, String) -> Void)?      // (label, direction)
+    var onDepthMap: ((CVPixelBuffer) -> Void)?             // raw depth buffer for the demo heatmap overlay
 
     var isRunning = false
     private(set) var hasLiDAR = false
@@ -60,6 +61,11 @@ class NavigationEngine: NSObject, ARSessionDelegate, VoiceCommandDelegate {
     private var latestDetections: [[String: Any]] = []
 
     private let detectionQueue = DispatchQueue(label: "com.blindguide.detection", qos: .userInitiated)
+
+    // AR breadcrumb — "remember this spot" / "take me back"
+    private var savedAnchor: ARAnchor?
+    private var guideBackTimer: Timer?
+    private var lastGuideAnnouncement: (distance: Float, time: TimeInterval) = (0, 0)
 
     // MARK: - Init
 
@@ -170,6 +176,7 @@ class NavigationEngine: NSObject, ARSessionDelegate, VoiceCommandDelegate {
         isRunning = false
         haptics?.stop()
         spatialAudio?.stopAll()
+        cancelGuideBackTimer()
         print("🛑 NavigationEngine stopped")
     }
 
@@ -278,12 +285,25 @@ class NavigationEngine: NSObject, ARSessionDelegate, VoiceCommandDelegate {
         centerBand = 0
         sLeft = nil; sCenter = nil; sRight = nil
         currentRiskL = .safe; currentRiskC = .safe; currentRiskR = .safe
+        // World coordinates may have shifted; the saved breadcrumb is no longer
+        // trustworthy. Drop it and ask the user to re-mark.
+        if savedAnchor != nil {
+            savedAnchor = nil
+            cancelGuideBackTimer()
+            speech?.speak("Lost the saved spot after the camera reset. Mark it again.", urgency: 6.0)
+        }
     }
 
     // MARK: - Depth Processing
 
     private func processDepth(_ depthMap: CVPixelBuffer) {
         lastDepthMap = depthMap
+
+        // Forward to the demo heatmap overlay (callback handles its own locking).
+        // Called before our read-lock since CVPixelBuffer locks are reentrant
+        // for read-only but it's cleaner to keep them disjoint.
+        onDepthMap?(depthMap)
+
         CVPixelBufferLockBaseAddress(depthMap, .readOnly)
         defer { CVPixelBufferUnlockBaseAddress(depthMap, .readOnly) }
 
@@ -501,7 +521,7 @@ class NavigationEngine: NSObject, ARSessionDelegate, VoiceCommandDelegate {
     private static let tier1: Set<String> = ["person", "car", "truck", "bus", "motorcycle", "bicycle"]
     private static let tier2: Set<String> = ["chair", "bench", "dining table", "couch"]
     private static let tier3: Set<String> = ["fire hydrant", "stop sign", "parking meter",
-                                             "refrigerator", "potted plant", "bed", "backpack",
+                                             "refrigerator", "bed", "backpack",
                                              "laptop", "tv"]
     private static let allRelevant = tier1.union(tier2).union(tier3)
 
@@ -577,25 +597,14 @@ class NavigationEngine: NSObject, ARSessionDelegate, VoiceCommandDelegate {
         // Tier 1 first, then closest first
         ranked.sort { $0.tier != $1.tier ? $0.tier < $1.tier : $0.dist < $1.dist }
 
-        // Track objects and detect approach speed
+        // Object tracking: keep position history per (label, direction) so the
+        // standard re-announcement check below has stable distance baselines.
+        // Fast-approach interjections were removed — they fired on every cycle
+        // for moving people/cars and felt like the app was nagging.
         var currentTracked = Set<String>()
         for r in ranked {
             let key = "\(r.label)_\(r.direction)"
             currentTracked.insert(key)
-
-            if let prev = trackedObjects[key] {
-                let dt = now - prev.time
-                if dt > 0.3 && dt < 3.0 {
-                    let approachSpeed = (prev.dist - r.dist) / Float(dt)  // meters/sec, positive = approaching
-                    if approachSpeed > 0.8 && r.dist < 2.5 && r.tier == 1 {
-                        // Fast approach — warn immediately
-                        let name = r.det.confidence >= 0.7 ? r.det.label.capitalized : "Someone"
-                        speech?.speak("\(name) approaching fast", urgency: 5.0)
-                        lastAnnounced[key] = (distance: r.dist, time: now)
-                        lastTier1Speech = now
-                    }
-                }
-            }
             trackedObjects[key] = (dist: r.dist, x: Float(r.det.boundingBox.midX), time: now)
         }
         // Clean up objects not seen
@@ -607,10 +616,16 @@ class NavigationEngine: NSObject, ARSessionDelegate, VoiceCommandDelegate {
         // (1 per cycle — prevents speech queue buildup and stale announcements)
         var bestToSpeak: Ranked? = nil
 
+        // Global tier-1 self-throttle: when several people/cars are in view,
+        // we don't want a flood of "person ahead, person ahead" overlapping.
+        // The previous announcement needs ~2.5s to finish; gate the next.
+        let tier1Throttled = (now - lastTier1Speech) < 2.5
+
         for r in ranked {
             // Tier gating
             if r.tier == 2 && now - lastTier1Speech < 3.0 { continue }
             if r.tier == 3 && now - lastTier1Speech < 5.0 { continue }
+            if r.tier == 1 && tier1Throttled { continue }
 
             let key = "\(r.label)_\(r.direction)"
 
@@ -618,11 +633,16 @@ class NavigationEngine: NSObject, ARSessionDelegate, VoiceCommandDelegate {
             var shouldSpeak = false
             if let prev = lastAnnounced[key] {
                 let dt = now - prev.time
-                let dd = abs(r.dist - prev.distance)
                 if r.tier == 1 {
-                    if dd > 0.3 && dt > 1.5 { shouldSpeak = true }
-                    else if dt > 4.0 { shouldSpeak = true }
+                    // Tier 1 (people, vehicles): only re-announce when approaching
+                    // meaningfully closer, OR after a long pause if still in view.
+                    // This prevents "stuck on people" when the user walks past
+                    // multiple people who all key to person_<direction>.
+                    let approachingCloser = r.dist < prev.distance - 0.5
+                    if approachingCloser && dt > 3.0 { shouldSpeak = true }
+                    else if dt > 8.0 { shouldSpeak = true }
                 } else {
+                    let dd = abs(r.dist - prev.distance)
                     if dd > 1.0 && dt > 4.0 { shouldSpeak = true }
                     else if dt > 15.0 { shouldSpeak = true }
                 }
@@ -667,7 +687,9 @@ class NavigationEngine: NSObject, ARSessionDelegate, VoiceCommandDelegate {
         }
 
         latestDetections = eventData
-        let staleKeys = lastAnnounced.filter { now - $0.value.time > 20 }.map { $0.key }
+        // Drop stale tracking entries after 10s so a returning object is treated
+        // as fresh (rather than gated by the 8s tier-1 cooldown above).
+        let staleKeys = lastAnnounced.filter { now - $0.value.time > 10 }.map { $0.key }
         for key in staleKeys { lastAnnounced.removeValue(forKey: key) }
     }
 
@@ -805,15 +827,171 @@ class NavigationEngine: NSObject, ARSessionDelegate, VoiceCommandDelegate {
             speech?.speak("Resuming navigation.", urgency: 6.0)
         case .help:
             // High urgency so it doesn't get blocked by LiDAR alerts
-            speech?.speak("Here are your controls. Double tap to scan. Hold the screen to speak. Swipe left or right to check sides. Voice commands: What's around. Is it safe. Left. Right. Scan. Stop. Resume. Help.", urgency: 10.0)
+            speech?.speak("Here are your controls. Double tap to scan. Hold the screen to speak. Swipe left or right to check sides. Voice commands: What's around. Is it safe. Left. Right. Scan. Read. What color. What bill. Remember this. Take me back. Stop. Resume. Help.", urgency: 10.0)
         case .scan:
             speech?.speak("Scanning now.", urgency: 6.0)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
                 self?.describeArea()
             }
+        case .readText:
+            performReadText()
+        case .identifyBill:
+            performIdentifyBill()
+        case .identifyColor:
+            performIdentifyColor()
+        case .rememberSpot:
+            rememberCurrentSpot()
+        case .guideBack:
+            guideToSavedSpot()
         case .unknown(let text):
             speech?.speak("Sorry, I didn't catch that. Say help for commands.", urgency: 6.0)
         }
+    }
+
+    // MARK: - AR Breadcrumb ("remember this" / "take me back")
+
+    /// Save the user's current pose as an ARAnchor so we can guide them back later.
+    /// Replaces any previously saved spot.
+    private func rememberCurrentSpot() {
+        guard let session = arSession, let frame = session.currentFrame else {
+            speech?.speak("Cannot remember spot. Camera not ready.", urgency: 7.0)
+            return
+        }
+        if let old = savedAnchor { session.remove(anchor: old) }
+        let anchor = ARAnchor(name: "savedSpot", transform: frame.camera.transform)
+        session.add(anchor: anchor)
+        savedAnchor = anchor
+        speech?.speak("Spot saved. Say take me back to return here.", urgency: 7.0)
+    }
+
+    /// Speak the distance + bearing back to the saved spot, and start a periodic
+    /// re-announcement timer so the user hears updates as they walk.
+    private func guideToSavedSpot() {
+        guard savedAnchor != nil else {
+            speech?.speak("No saved spot. Say remember this first to mark your location.", urgency: 7.0)
+            return
+        }
+        cancelGuideBackTimer()
+        speech?.speak("Guiding you back.", urgency: 7.0)
+        // First announcement after a short delay so the prompt above can finish.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.announceGuidanceStep(initial: true)
+        }
+        // Re-announce every 3.5s while we're still navigating.
+        let t = Timer.scheduledTimer(withTimeInterval: 3.5, repeats: true) { [weak self] _ in
+            self?.announceGuidanceStep(initial: false)
+        }
+        RunLoop.main.add(t, forMode: .common)
+        guideBackTimer = t
+    }
+
+    private func cancelGuideBackTimer() {
+        guideBackTimer?.invalidate()
+        guideBackTimer = nil
+        lastGuideAnnouncement = (0, 0)
+    }
+
+    /// Compute distance + bearing to the saved anchor and speak it. Stops the
+    /// timer once we're within 0.5 m.
+    private func announceGuidanceStep(initial: Bool) {
+        guard let session = arSession,
+              let anchor = savedAnchor,
+              let frame = session.currentFrame else {
+            cancelGuideBackTimer()
+            speech?.speak("Lost saved spot. Say remember this again.", urgency: 7.0)
+            return
+        }
+
+        let camTransform = frame.camera.transform
+        let camPos = SIMD3<Float>(camTransform.columns.3.x,
+                                   camTransform.columns.3.y,
+                                   camTransform.columns.3.z)
+        let anchorPos = SIMD3<Float>(anchor.transform.columns.3.x,
+                                      anchor.transform.columns.3.y,
+                                      anchor.transform.columns.3.z)
+        let toAnchor = anchorPos - camPos
+
+        // Project to horizontal plane (ignore vertical so steps/elevation don't skew the bearing).
+        let dx = toAnchor.x, dz = toAnchor.z
+        let horizDist = sqrt(dx * dx + dz * dz)
+
+        // Arrived?
+        if horizDist < 0.6 {
+            speech?.speak("You arrived. Back at the saved spot.", urgency: 7.0)
+            cancelGuideBackTimer()
+            return
+        }
+
+        // Build the user's forward + right vectors in world space (horizontal).
+        let camForward = -SIMD3<Float>(camTransform.columns.2.x,
+                                        camTransform.columns.2.y,
+                                        camTransform.columns.2.z)
+        let camRight = SIMD3<Float>(camTransform.columns.0.x,
+                                     camTransform.columns.0.y,
+                                     camTransform.columns.0.z)
+
+        let fwdH = simd_normalize(SIMD2<Float>(camForward.x, camForward.z))
+        let rightH = simd_normalize(SIMD2<Float>(camRight.x, camRight.z))
+        let toH = simd_normalize(SIMD2<Float>(dx, dz))
+
+        // forwardDot = 1 → ahead; -1 → behind.
+        // rightDot   = 1 → on right; -1 → on left.
+        let forwardDot = simd_dot(fwdH, toH)
+        let rightDot   = simd_dot(rightH, toH)
+
+        // Signed angle from "where you face" to "where the anchor is".
+        // Positive = anchor is to your right; negative = to your left.
+        let angleDeg = atan2(rightDot, forwardDot) * 180 / .pi
+
+        let direction: String
+        let absA = abs(angleDeg)
+        if absA < 20      { direction = "straight ahead" }
+        else if absA < 60 { direction = angleDeg > 0 ? "slightly right" : "slightly left" }
+        else if absA < 120 { direction = angleDeg > 0 ? "to your right" : "to your left" }
+        else if absA < 160 { direction = angleDeg > 0 ? "behind you on the right" : "behind you on the left" }
+        else              { direction = "directly behind you" }
+
+        let feet = max(1, Int((horizDist * 3.28084).rounded()))
+
+        // Suppress an update if nothing meaningful changed.
+        let now = CACurrentMediaTime()
+        let dd = abs(horizDist - lastGuideAnnouncement.distance)
+        let dt = now - lastGuideAnnouncement.time
+        if !initial && dd < 0.4 && dt < 6.0 { return }
+
+        speech?.speak("\(feet) feet, \(direction).", urgency: 6.0)
+        lastGuideAnnouncement = (horizDist, now)
+    }
+
+    // MARK: - Vision Tricks (user-initiated voice commands)
+
+    private func performReadText() {
+        guard let frame = arSession?.currentFrame else {
+            speech?.speak("Camera not ready.", urgency: 7.0); return
+        }
+        // No prelude — back-to-back .user utterances trigger an
+        // AVSpeechSynthesizer quirk where stopSpeaking-then-speak silently
+        // drops the second utterance, swallowing the OCR result.
+        VisionTricks.shared.recognizeText(in: frame.capturedImage) { [weak self] text in
+            self?.speech?.speak(text, urgency: 7.0)
+        }
+    }
+
+    private func performIdentifyBill() {
+        guard let frame = arSession?.currentFrame else {
+            speech?.speak("Camera not ready.", urgency: 7.0); return
+        }
+        VisionTricks.shared.identifyCurrency(in: frame.capturedImage) { [weak self] result in
+            self?.speech?.speak(result, urgency: 7.0)
+        }
+    }
+
+    private func performIdentifyColor() {
+        guard let frame = arSession?.currentFrame else {
+            speech?.speak("Camera not ready.", urgency: 7.0); return
+        }
+        let color = VisionTricks.shared.identifyColor(in: frame.capturedImage)
+        speech?.speak("That looks \(color).", urgency: 7.0)
     }
 
     private func describeArea() {

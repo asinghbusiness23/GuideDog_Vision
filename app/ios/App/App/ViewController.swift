@@ -15,6 +15,9 @@ class ViewController: CAPBridgeViewController, WKScriptMessageHandler {
     // Standalone speech for welcome screens (before engine starts)
     private let standalonesynth = AVSpeechSynthesizer()
 
+    // Demo overlay — colorized LiDAR heatmap, toggled by 3-finger tap.
+    private var depthOverlay: DepthOverlayView?
+
     // MARK: - Lifecycle
 
     override func viewDidLoad() {
@@ -41,7 +44,30 @@ class ViewController: CAPBridgeViewController, WKScriptMessageHandler {
 
         // Log when webView finishes loading
         webView?.navigationDelegate = self as? WKNavigationDelegate
+
+        installDepthOverlay()
+
         print("VC: viewDidLoad complete")
+    }
+
+    /// Set up the demo heatmap overlay above the webView, plus a 3-finger
+    /// tap recognizer to toggle it from the stage during a demo.
+    private func installDepthOverlay() {
+        let overlay = DepthOverlayView(frame: view.bounds)
+        overlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        view.addSubview(overlay)
+        depthOverlay = overlay
+
+        // 3-finger tap toggles the heatmap. Attached to self.view so it fires
+        // even when the webView would otherwise capture touches.
+        let tap = UITapGestureRecognizer(target: self, action: #selector(toggleDepthOverlay))
+        tap.numberOfTouchesRequired = 3
+        tap.cancelsTouchesInView = false
+        view.addGestureRecognizer(tap)
+    }
+
+    @objc private func toggleDepthOverlay() {
+        depthOverlay?.toggle()
     }
 
     override func capacitorDidLoad() {
@@ -76,6 +102,11 @@ class ViewController: CAPBridgeViewController, WKScriptMessageHandler {
         e.onDetectionEvent = { [weak self] label, direction in
             let safe = label.replacingOccurrences(of: "'", with: "\\'")
             self?.sendJS("if(window.__onDetection){window.__onDetection('\(safe)','\(direction)');}")
+        }
+
+        // Feed the demo heatmap overlay (no-op while it's hidden).
+        e.onDepthMap = { [weak self] depthMap in
+            self?.depthOverlay?.update(depthMap: depthMap)
         }
 
         e.start()
