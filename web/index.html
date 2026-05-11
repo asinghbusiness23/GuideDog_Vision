@@ -1,521 +1,877 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#000000">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="theme-color" content="#000000" />
     <title>GuideDog</title>
-    <link rel="manifest" href="manifest.json">
-    
+    <link rel="manifest" href="manifest.json" />
+
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
-        html, body { height: 100%; overflow: hidden; background: #000; color: #fff; font-family: -apple-system, sans-serif; }
-        
-        .app { height: 100dvh; display: flex; flex-direction: column; position: relative; }
-        
-        #video {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            opacity: 0;
-            transition: opacity 0.15s;
-        }
-        #video.cam-on {
-            opacity: 0.3;
-        }
-        
-        .overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            display: flex;
-            flex-direction: column;
-            z-index: 10;
-        }
-        
-        /* Status bar */
-        .status-bar {
-            padding: 15px;
-            padding-top: max(15px, env(safe-area-inset-top));
-            background: rgba(0,0,0,0.85);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .status-badge {
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 700;
-        }
-        
-        .badge-safe { background: #0f8; color: #000; }
-        .badge-warning { background: #fa0; color: #000; animation: pulse 1s infinite; }
-        .badge-danger { background: #f44; color: #fff; animation: pulse 0.3s infinite; }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+        touch-action: manipulation;
+      }
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+        color: #fff;
+        font-family: -apple-system, sans-serif;
+      }
 
-        /* Sound badge — shown when YAMNet detects a notable sound */
-        .sound-badge {
-            padding: 6px 11px;
-            border-radius: 14px;
-            font-size: 12px;
-            font-weight: 600;
-            background: rgba(80, 160, 255, 0.25);
-            border: 1px solid rgba(80, 160, 255, 0.55);
-            color: #8cf;
-            max-width: 130px;
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-            display: none;
-            transition: opacity 0.3s;
-        }
-        .sound-badge.visible { display: block; }
-        
-        .ai-badge {
-            padding: 6px 12px;
-            border-radius: 15px;
-            font-size: 11px;
-            background: rgba(255,255,255,0.2);
-            white-space: nowrap;
-        }
+      .app {
+        height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+      }
 
-        .cam-toggle {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
-            border: 2px solid rgba(255,255,255,0.4);
-            background: rgba(255,255,255,0.15);
-            color: #fff;
-            font-size: 13px;
-            font-weight: 600;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 1px;
-            transition: background 0.15s, border-color 0.15s;
-            flex-shrink: 0;
-        }
-        .cam-toggle.on {
-            background: rgba(0, 200, 120, 0.45);
-            border-color: rgba(0, 220, 140, 0.9);
-        }
+      #video {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        opacity: 0;
+        transition: opacity 0.15s;
+      }
+      #video.cam-on {
+        opacity: 0.3;
+      }
 
-        .gesture-hint {
-            font-size: 12px;
-            color: rgba(255,255,255,0.4);
-            margin-top: 15px;
-            text-align: center;
-        }
+      .overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        z-index: 10;
+      }
 
-        @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
-        
-        /* Alert area */
-        .alert-area {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-        
-        .alert-box {
-            width: 100%;
-            max-width: 350px;
-            padding: 25px;
-            border-radius: 20px;
-            text-align: center;
-            margin-bottom: 20px;
-            transition: all 0.3s;
-        }
+      /* Status bar */
+      .status-bar {
+        padding: 15px;
+        padding-top: max(15px, env(safe-area-inset-top));
+        background: rgba(0, 0, 0, 0.85);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
 
-        .alert-box.safe {
-            background: rgba(0, 40, 20, 0.8);
-            border: 3px solid #0f8;
-        }
+      .status-badge {
+        padding: 8px 15px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 700;
+      }
 
-        .alert-box.warning {
-            background: rgba(50, 30, 0, 0.85);
-            border: 3px solid #fa0;
-            animation: pulse 1s infinite;
-        }
+      .badge-safe {
+        background: #0f8;
+        color: #000;
+      }
+      .badge-warning {
+        background: #fa0;
+        color: #000;
+        animation: pulse 1s infinite;
+      }
+      .badge-danger {
+        background: #f44;
+        color: #fff;
+        animation: pulse 0.3s infinite;
+      }
 
-        .alert-box.danger {
-            background: rgba(60, 10, 10, 0.9);
-            border: 4px solid #f44;
-            animation: shake 0.3s infinite;
-        }
-        
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
-        }
-        
-        .alert-icon { font-size: 60px; margin-bottom: 15px; }
-        .alert-text { font-size: 22px; font-weight: 700; line-height: 1.3; }
-        .alert-detail { font-size: 16px; margin-top: 10px; opacity: 0.8; }
+      /* Sound badge — shown when YAMNet detects a notable sound */
+      .sound-badge {
+        padding: 6px 11px;
+        border-radius: 14px;
+        font-size: 12px;
+        font-weight: 600;
+        background: rgba(80, 160, 255, 0.25);
+        border: 1px solid rgba(80, 160, 255, 0.55);
+        color: #8cf;
+        max-width: 130px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        display: none;
+        transition: opacity 0.3s;
+      }
+      .sound-badge.visible {
+        display: block;
+      }
 
-        /* ── CAPTION OVERLAY ── */
-        /* Fixed to viewport, always on top of everything including help dialogs */
-        #captionOverlay {
-            position: fixed;
-            left: 0;
-            right: 0;
-            bottom: max(20px, env(safe-area-inset-bottom));
-            z-index: 200;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            pointer-events: none;
-            padding: 0 12px;
-            gap: 6px;
-        }
+      .ai-badge {
+        padding: 6px 12px;
+        border-radius: 15px;
+        font-size: 11px;
+        background: rgba(255, 255, 255, 0.2);
+        white-space: nowrap;
+      }
 
-        /* Sound event banner (YAMNet) */
-        #soundBanner {
-            background: rgba(0, 80, 180, 0.82);
-            border: 1px solid rgba(100, 180, 255, 0.55);
-            border-radius: 12px;
-            padding: 7px 16px;
-            font-size: 14px;
-            font-weight: 600;
-            color: #c8e8ff;
-            text-align: center;
-            max-width: 340px;
-            opacity: 0;
-            transform: translateY(8px);
-            transition: opacity 0.25s, transform 0.25s;
-            pointer-events: none;
-        }
-        #soundBanner.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
+      .cam-toggle {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        border: 2px solid rgba(255, 255, 255, 0.4);
+        background: rgba(255, 255, 255, 0.15);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 600;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1px;
+        transition:
+          background 0.15s,
+          border-color 0.15s;
+        flex-shrink: 0;
+      }
+      .cam-toggle.on {
+        background: rgba(0, 200, 120, 0.45);
+        border-color: rgba(0, 220, 140, 0.9);
+      }
 
-        /* Speech caption box */
-        #captionBox {
-            background: rgba(0, 0, 0, 0.88);
-            border: 20px solid rgba(255,255,255,0.30);
-            border-radius: 14px;
-            padding: 12px 20px;
-            font-size: 18px;
-            font-weight: 500;
-            line-height: 1.45;
-            color: #fff;
-            text-align: center;
-            max-width: 400px;
-            width: 100%;
-            min-height: 52px;
-            opacity: 1;
-            transform: translateY(10px);
-            transition: opacity 0.2s, transform 0.2s;
-            pointer-events: none;
-            /* Ensure text is sharp even on low-DPI screens */
-            -webkit-font-smoothing: antialiased;
-        }
-        #captionBox.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        /* Interim text is slightly dimmed */
-        #captionBox .interim { color: rgba(255,255,255,0.5); font-style: italic; }
-        #captionBox .final   { color: #fff; }
+      .gesture-hint {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.4);
+        margin-top: 15px;
+        text-align: center;
+      }
 
-        /* Caption toggle button — in status bar */
-        .cc-toggle {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
-            border: 2px solid rgba(255,255,255,0.35);
-            background: rgba(255,255,255,0.12);
-            color: #fff;
-            font-size: 11px;
-            font-weight: 700;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 1px;
-            transition: background 0.15s, border-color 0.15s;
-            flex-shrink: 0;
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: scale(1);
         }
-        .cc-toggle.on {
-            background: rgba(80, 160, 255, 0.4);
-            border-color: rgba(100, 180, 255, 0.9);
+        50% {
+          transform: scale(1.05);
         }
+      }
 
-        /* Sound toggle button */
-        .snd-toggle {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
-            border: 2px solid rgba(255,255,255,0.35);
-            background: rgba(255,255,255,0.12);
-            color: #fff;
-            font-size: 18px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 1px;
-            transition: background 0.15s, border-color 0.15s;
-            flex-shrink: 0;
-        }
-        .snd-toggle.on {
-            background: rgba(80, 200, 120, 0.4);
-            border-color: rgba(100, 220, 140, 0.9);
-        }
+      /* Alert area */
+      .alert-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+      }
 
-        /* Direction indicators — hidden but kept in DOM */
-        .direction-row { display: none; }
-        
-        .direction-btn {
-            width: 70px; height: 70px; border-radius: 50%;
-            border: 3px solid rgba(255,255,255,0.3);
-            background: rgba(0,0,0,0.5);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 16px; font-weight: bold;
-            opacity: 0.7; color: #fff; transition: all 0.2s;
-        }
-        .direction-btn.active { opacity: 1; border-color: #fa0; background: rgba(255,170,0,0.3); }
-        .direction-btn.danger { opacity: 1; border-color: #f44; background: rgba(255,68,68,0.4); animation: pulse 0.3s infinite; }
+      .alert-box {
+        width: 100%;
+        max-width: 350px;
+        padding: 25px;
+        border-radius: 20px;
+        text-align: center;
+        margin-bottom: 20px;
+        transition: all 0.3s;
+      }
 
-        /* Control bar — hidden but wired for a11y */
-        .control-bar { display: none; }
-        .ctrl-btn {
-            flex: 1; padding: 18px 10px; border: none; border-radius: 15px;
-            font-size: 14px; font-weight: 700;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            gap: 5px; background: rgba(255,255,255,0.2); color: #fff;
-        }
-        .ctrl-btn.tall { padding: 36px 10px; }
-        .ctrl-btn .icon { font-size: 24px; }
-        .ctrl-btn.mic { background: #48f; }
-        .ctrl-btn.mic.listening { background: #f44; animation: pulse 0.5s infinite; }
-        
-        /* Loading */
-        .loading {
-            position: fixed; inset: 0; background: #000;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 100; transition: opacity 0.5s;
-        }
-        .loading.hidden { opacity: 0; pointer-events: none; display: none; }
-        .loading-spinner {
-            width: 60px; height: 60px;
-            border: 5px solid #333; border-top-color: #0f8;
-            border-radius: 50%; animation: spin 1s linear infinite;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .loading-text { font-size: 18px; margin-top: 25px; text-align: center; }
-        .loading-subtext { font-size: 14px; margin-top: 10px; color: #888; text-align: center; }
-        
-        /* Help */
-        .help {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.98);
-            z-index: 50; display: none; flex-direction: column;
-            padding: 20px; overflow-y: auto;
-        }
-        .help.visible { display: flex; }
-        .help-title { font-size: 24px; font-weight: 700; margin-bottom: 20px; text-align: center; }
-        .help-item { padding: 15px; margin-bottom: 10px; background: #111; border-radius: 10px; }
-        .help-label { font-size: 16px; font-weight: 700; color: #48f; }
-        .help-desc { font-size: 14px; color: #aaa; margin-top: 5px; }
-        .help-close { margin-top: 20px; padding: 20px; background: #48f; border: none; border-radius: 15px; color: #fff; font-size: 18px; font-weight: 700; }
-        .help-item.toggle { cursor: pointer; }
-        .help-item.toggle:active { background: #1a1a1a; }
-        .version-tag { position: fixed; bottom: max(6px, env(safe-area-inset-bottom)); right: 8px; font-size: 10px; color: rgba(255,255,255,0.3); z-index: 5; pointer-events: none; }
+      .alert-box.safe {
+        background: rgba(0, 40, 20, 0.8);
+        border: 3px solid #0f8;
+      }
 
-        /* Colorblind palette */
-        body.colorblind .badge-safe    { background: #009E73; color: #fff; }
-        body.colorblind .badge-warning { background: #E69F00; color: #000; }
-        body.colorblind .badge-danger  { background: #D55E00; color: #fff; }
-        body.colorblind .alert-box.safe    { background: rgba(0, 60, 45, 0.85);   border-color: #009E73; }
-        body.colorblind .alert-box.warning { background: rgba(60, 40, 0, 0.85);   border-color: #E69F00; }
-        body.colorblind .alert-box.danger  { background: rgba(60, 25, 0, 0.9);    border-color: #D55E00; }
-        body.colorblind .direction-btn.active { border-color: #E69F00; background: rgba(230, 159, 0, 0.30); }
-        body.colorblind .direction-btn.danger { border-color: #D55E00; background: rgba(213, 94, 0, 0.40); }
+      .alert-box.warning {
+        background: rgba(50, 30, 0, 0.85);
+        border: 3px solid #fa0;
+        animation: pulse 1s infinite;
+      }
+
+      .alert-box.danger {
+        background: rgba(60, 10, 10, 0.9);
+        border: 4px solid #f44;
+        animation: shake 0.3s infinite;
+      }
+
+      @keyframes shake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        25% {
+          transform: translateX(-5px);
+        }
+        75% {
+          transform: translateX(5px);
+        }
+      }
+
+      .alert-icon {
+        font-size: 60px;
+        margin-bottom: 15px;
+      }
+      .alert-text {
+        font-size: 22px;
+        font-weight: 700;
+        line-height: 1.3;
+      }
+      .alert-detail {
+        font-size: 16px;
+        margin-top: 10px;
+        opacity: 0.8;
+      }
+
+      /* ── CAPTION OVERLAY ── */
+      /* Fixed to viewport, always on top of everything including help dialogs */
+      #captionOverlay {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: max(20px, env(safe-area-inset-bottom));
+        z-index: 200;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        pointer-events: none;
+        padding: 0 12px;
+        gap: 6px;
+      }
+
+      /* Sound event banner (YAMNet) */
+      #soundBanner {
+        background: rgba(0, 80, 180, 0.82);
+        border: 1px solid rgba(100, 180, 255, 0.55);
+        border-radius: 12px;
+        padding: 7px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #c8e8ff;
+        text-align: center;
+        max-width: 340px;
+        opacity: 0;
+        transform: translateY(8px);
+        transition:
+          opacity 0.25s,
+          transform 0.25s;
+        pointer-events: none;
+      }
+      #soundBanner.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      /* Speech caption box */
+      #captionBox {
+        background: rgba(0, 0, 0, 0.88);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 14px;
+        padding: 12px 20px;
+        font-size: 18px;
+        font-weight: 500;
+        line-height: 1.45;
+        color: #fff;
+        text-align: center;
+        max-width: 400px;
+        width: 100%;
+        min-height: 52px;
+        opacity: 0;
+        transform: translateY(10px);
+        transition:
+          opacity 0.2s,
+          transform 0.2s;
+        pointer-events: none;
+        /* Ensure text is sharp even on low-DPI screens */
+        -webkit-font-smoothing: antialiased;
+      }
+      #captionBox.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      /* Interim text is slightly dimmed */
+      #captionBox .interim {
+        color: rgba(255, 255, 255, 0.5);
+        font-style: italic;
+      }
+      #captionBox .final {
+        color: #fff;
+      }
+
+      /* Caption toggle button — in status bar */
+      .cc-toggle {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        border: 2px solid rgba(255, 255, 255, 0.35);
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
+        font-size: 11px;
+        font-weight: 700;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1px;
+        transition:
+          background 0.15s,
+          border-color 0.15s;
+        flex-shrink: 0;
+      }
+      .cc-toggle.on {
+        background: rgba(80, 160, 255, 0.4);
+        border-color: rgba(100, 180, 255, 0.9);
+      }
+
+      /* Sound toggle button */
+      .snd-toggle {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        border: 2px solid rgba(255, 255, 255, 0.35);
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
+        font-size: 18px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1px;
+        transition:
+          background 0.15s,
+          border-color 0.15s;
+        flex-shrink: 0;
+      }
+      .snd-toggle.on {
+        background: rgba(80, 200, 120, 0.4);
+        border-color: rgba(100, 220, 140, 0.9);
+      }
+
+      /* Direction indicators — hidden but kept in DOM */
+      .direction-row {
+        display: none;
+      }
+
+      .direction-btn {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        font-weight: bold;
+        opacity: 0.7;
+        color: #fff;
+        transition: all 0.2s;
+      }
+      .direction-btn.active {
+        opacity: 1;
+        border-color: #fa0;
+        background: rgba(255, 170, 0, 0.3);
+      }
+      .direction-btn.danger {
+        opacity: 1;
+        border-color: #f44;
+        background: rgba(255, 68, 68, 0.4);
+        animation: pulse 0.3s infinite;
+      }
+
+      /* Control bar — hidden but wired for a11y */
+      .control-bar {
+        display: none;
+      }
+      .ctrl-btn {
+        flex: 1;
+        padding: 18px 10px;
+        border: none;
+        border-radius: 15px;
+        font-size: 14px;
+        font-weight: 700;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        background: rgba(255, 255, 255, 0.2);
+        color: #fff;
+      }
+      .ctrl-btn.tall {
+        padding: 36px 10px;
+      }
+      .ctrl-btn .icon {
+        font-size: 24px;
+      }
+      .ctrl-btn.mic {
+        background: #48f;
+      }
+      .ctrl-btn.mic.listening {
+        background: #f44;
+        animation: pulse 0.5s infinite;
+      }
+
+      /* Loading */
+      .loading {
+        position: fixed;
+        inset: 0;
+        background: #000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        transition: opacity 0.5s;
+      }
+      .loading.hidden {
+        opacity: 0;
+        pointer-events: none;
+        display: none;
+      }
+      .loading-spinner {
+        width: 60px;
+        height: 60px;
+        border: 5px solid #333;
+        border-top-color: #0f8;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      .loading-text {
+        font-size: 18px;
+        margin-top: 25px;
+        text-align: center;
+      }
+      .loading-subtext {
+        font-size: 14px;
+        margin-top: 10px;
+        color: #888;
+        text-align: center;
+      }
+
+      /* Help */
+      .help {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.98);
+        z-index: 50;
+        display: none;
+        flex-direction: column;
+        padding: 20px;
+        overflow-y: auto;
+      }
+      .help.visible {
+        display: flex;
+      }
+      .help-title {
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 20px;
+        text-align: center;
+      }
+      .help-item {
+        padding: 15px;
+        margin-bottom: 10px;
+        background: #111;
+        border-radius: 10px;
+      }
+      .help-label {
+        font-size: 16px;
+        font-weight: 700;
+        color: #48f;
+      }
+      .help-desc {
+        font-size: 14px;
+        color: #aaa;
+        margin-top: 5px;
+      }
+      .help-close {
+        margin-top: 20px;
+        padding: 20px;
+        background: #48f;
+        border: none;
+        border-radius: 15px;
+        color: #fff;
+        font-size: 18px;
+        font-weight: 700;
+      }
+      .help-item.toggle {
+        cursor: pointer;
+      }
+      .help-item.toggle:active {
+        background: #1a1a1a;
+      }
+      .version-tag {
+        position: fixed;
+        bottom: max(6px, env(safe-area-inset-bottom));
+        right: 8px;
+        font-size: 10px;
+        color: rgba(255, 255, 255, 0.3);
+        z-index: 5;
+        pointer-events: none;
+      }
+
+      /* Colorblind palette */
+      body.colorblind .badge-safe {
+        background: #009e73;
+        color: #fff;
+      }
+      body.colorblind .badge-warning {
+        background: #e69f00;
+        color: #000;
+      }
+      body.colorblind .badge-danger {
+        background: #d55e00;
+        color: #fff;
+      }
+      body.colorblind .alert-box.safe {
+        background: rgba(0, 60, 45, 0.85);
+        border-color: #009e73;
+      }
+      body.colorblind .alert-box.warning {
+        background: rgba(60, 40, 0, 0.85);
+        border-color: #e69f00;
+      }
+      body.colorblind .alert-box.danger {
+        background: rgba(60, 25, 0, 0.9);
+        border-color: #d55e00;
+      }
+      body.colorblind .direction-btn.active {
+        border-color: #e69f00;
+        background: rgba(230, 159, 0, 0.3);
+      }
+      body.colorblind .direction-btn.danger {
+        border-color: #d55e00;
+        background: rgba(213, 94, 0, 0.4);
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="loading" id="loading">
-        <div class="loading-spinner"></div>
-        <div class="loading-text" id="loadingText">Loading, please wait a moment</div>
-        <div class="loading-subtext">Best Works on Mobile Devices</div>
+      <div class="loading-spinner"></div>
+      <div class="loading-text" id="loadingText">
+        Loading, please wait a moment
+      </div>
+      <div class="loading-subtext">Best Works on Mobile Devices</div>
     </div>
-    
+
     <noscript>
-        <div style="position:fixed;inset:0;background:#000;color:#fff;display:flex;align-items:center;justify-content:center;padding:20px;text-align:center;font-family:sans-serif;font-size:18px;">
-            GuideDog requires JavaScript to run. Please enable JavaScript in your browser.
-        </div>
+      <div
+        style="
+          position: fixed;
+          inset: 0;
+          background: #000;
+          color: #fff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+          text-align: center;
+          font-family: sans-serif;
+          font-size: 18px;
+        "
+      >
+        GuideDog requires JavaScript to run. Please enable JavaScript in your
+        browser.
+      </div>
     </noscript>
 
-    <div class="help" id="privacyNotice" role="dialog" aria-modal="true" aria-labelledby="privacyTitle">
-        <div class="help-title" id="privacyTitle">Privacy &amp; Permissions</div>
-        <div class="help-item">
-            <div class="help-label">Camera, Microphone &amp; AI Guide</div>
-            <div class="help-desc">GuideDog uses your camera, microphone, and cloud AI to help you navigate. Object detection and sound classification run on your device. Photos and audio are processed and immediately discarded.</div>
+    <div
+      class="help"
+      id="privacyNotice"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="privacyTitle"
+    >
+      <div class="help-title" id="privacyTitle">Privacy &amp; Permissions</div>
+      <div class="help-item">
+        <div class="help-label">Camera, Microphone &amp; AI Guide</div>
+        <div class="help-desc">
+          GuideDog uses your camera, microphone, and cloud AI to help you
+          navigate. Object detection and sound classification run on your
+          device. Photos and audio are processed and immediately discarded.
         </div>
-        <div class="help-item">
-            <div class="help-label">No Account Required</div>
-            <div class="help-desc">No personal data collected. No sign-up needed.</div>
+      </div>
+      <div class="help-item">
+        <div class="help-label">No Account Required</div>
+        <div class="help-desc">
+          No personal data collected. No sign-up needed.
         </div>
-        <button class="help-close" id="privacyAccept">I Understand — Continue</button>
-        <div style="text-align:center;color:#888;font-size:13px;margin-top:10px;">Tap to hear aloud · Tap again to continue</div>
+      </div>
+      <button class="help-close" id="privacyAccept">
+        I Understand — Continue
+      </button>
+      <div
+        style="
+          text-align: center;
+          color: #888;
+          font-size: 13px;
+          margin-top: 10px;
+        "
+      >
+        Tap to hear aloud · Tap again to continue
+      </div>
     </div>
 
-    <div class="help" id="help" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
-        <div class="help-title" id="helpTitle">GuideDog</div>
-        
-        <div class="help-item">
-            <div class="help-label">AUTOMATIC PROTECTION</div>
-            <div class="help-desc">App constantly scans and warns you about obstacles, stairs, walls, doors automatically. You don't need to do anything!</div>
-        </div>
+    <div
+      class="help"
+      id="help"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="helpTitle"
+    >
+      <div class="help-title" id="helpTitle">GuideDog</div>
 
-        <div class="help-item">
-            <div class="help-label">Live Captions (CC button)</div>
-            <div class="help-desc">Tap CC to turn on closed captions. Speech near you will appear as text at the bottom of the screen in real time.</div>
+      <div class="help-item">
+        <div class="help-label">AUTOMATIC PROTECTION</div>
+        <div class="help-desc">
+          App constantly scans and warns you about obstacles, stairs, walls,
+          doors automatically. You don't need to do anything!
         </div>
+      </div>
 
-        <div class="help-item">
-            <div class="help-label">Sound Detection (🔊 button)</div>
-            <div class="help-desc">Tap 🔊 to enable sound detection. GuideDog will identify sounds like alarms, sirens, dogs, traffic, music, and more.</div>
+      <div class="help-item">
+        <div class="help-label">Live Captions (CC button)</div>
+        <div class="help-desc">
+          Tap CC to turn on closed captions. Speech near you will appear as text
+          at the bottom of the screen in real time.
         </div>
-        
-        <div class="help-item">
-            <div class="help-label">Voice Commands (tap mic button)</div>
-            <div class="help-desc">"What's around" - describe area<br>"Is it safe" - check path<br>"Left" / "Right" - check sides<br>"Read this" - read text aloud<br>"What color" - name a color<br>"What bill" - identify US currency<br>"Stop" / "Resume" - pause alerts</div>
-        </div>
-        
-        <div class="help-item">
-            <div class="help-label">Gesture Controls</div>
-            <div class="help-desc">Tap TOP = describe area<br>Tap BOTTOM = detailed scan<br>Swipe LEFT/RIGHT = check sides</div>
-        </div>
-        
-        <div class="help-item">
-            <div class="help-label">Alert Sounds</div>
-            <div class="help-desc">Beeps indicate direction of obstacle<br>Fast beeps = DANGER, very close!<br>Vibration = obstacle in your path</div>
-        </div>
+      </div>
 
-        <div class="help-item toggle" id="colorblindToggleItem" role="button" aria-pressed="false">
-            <div class="help-label">Colorblind Mode <span id="cbStatus">— off</span></div>
-            <div class="help-desc">Tap to switch alert colors to a red-green colorblind-friendly palette.</div>
+      <div class="help-item">
+        <div class="help-label">Sound Detection (🔊 button)</div>
+        <div class="help-desc">
+          Tap 🔊 to enable sound detection. GuideDog will identify sounds like
+          alarms, sirens, dogs, traffic, music, and more.
         </div>
+      </div>
 
-        <button class="help-close" id="helpClose">START - TAP HERE OR SAY "START"</button>
+      <div class="help-item">
+        <div class="help-label">Voice Commands (tap mic button)</div>
+        <div class="help-desc">
+          "What's around" - describe area<br />"Is it safe" - check path<br />"Left"
+          / "Right" - check sides<br />"Read this" - read text aloud<br />"What
+          color" - name a color<br />"What bill" - identify US currency<br />"Stop"
+          / "Resume" - pause alerts
+        </div>
+      </div>
+
+      <div class="help-item">
+        <div class="help-label">Gesture Controls</div>
+        <div class="help-desc">
+          Tap TOP = describe area<br />Tap BOTTOM = detailed scan<br />Swipe
+          LEFT/RIGHT = check sides
+        </div>
+      </div>
+
+      <div class="help-item">
+        <div class="help-label">Alert Sounds</div>
+        <div class="help-desc">
+          Beeps indicate direction of obstacle<br />Fast beeps = DANGER, very
+          close!<br />Vibration = obstacle in your path
+        </div>
+      </div>
+
+      <div
+        class="help-item toggle"
+        id="colorblindToggleItem"
+        role="button"
+        aria-pressed="false"
+      >
+        <div class="help-label">
+          Colorblind Mode <span id="cbStatus">— off</span>
+        </div>
+        <div class="help-desc">
+          Tap to switch alert colors to a red-green colorblind-friendly palette.
+        </div>
+      </div>
+
+      <button class="help-close" id="helpClose">
+        START - TAP HERE OR SAY "START"
+      </button>
     </div>
-    
+
     <div class="version-tag" id="versionTag">build 25d-v1</div>
 
     <div class="app">
-        <video id="video" autoplay playsinline muted></video>
-        
-        <div class="overlay">
-            <div class="status-bar">
-                <div class="status-badge badge-safe" id="statusBadge" style="display:none;">SAFE</div>
-                <div class="ai-badge" id="aiBadge">AI Active</div>
-                <!-- Sound detection toggle -->
-                <button class="snd-toggle" id="btnSnd" aria-label="Toggle sound detection" aria-pressed="false" title="Sound Detection">🔊</button>
-                <!-- Closed caption toggle -->
-                <button class="cc-toggle" id="btnCC" aria-label="Toggle live captions" aria-pressed="false" title="Closed Captions">
-                    <span style="font-size:15px;font-weight:800;">CC</span>
-                </button>
-                <button class="cam-toggle" id="btnCam" aria-label="Toggle camera preview on or off">
-                    <svg id="camIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                        <circle cx="12" cy="13" r="4"/>
-                    </svg>
-                    <span style="font-size:9px;">CAM</span>
-                </button>
-            </div>
+      <video id="video" autoplay playsinline muted></video>
 
-            <div class="alert-area" id="alertArea">
-                <div class="alert-box safe" id="alertBox" role="alert" aria-live="assertive" aria-atomic="true">
-                    <div class="alert-icon" id="alertIcon">OK</div>
-                    <div class="alert-text" id="alertText">Path Clear</div>
-                    <div class="alert-detail" id="alertDetail">Walking is safe</div>
-                </div>
-
-                <div class="gesture-hint" id="gestureHint">Tap top to describe · Tap bottom to scan · Swipe for sides</div>
-
-                <div id="debugInfo" style="font-size:10px;color:#888;margin-top:8px;font-family:monospace;text-align:center;display:none;"></div>
-
-                <div class="direction-row">
-                    <div class="direction-btn" id="dirLeft">L</div>
-                    <div class="direction-btn" id="dirAhead">F</div>
-                    <div class="direction-btn" id="dirRight">R</div>
-                </div>
-            </div>
-
-            <!-- Control bar — hidden, wired for assistive tech -->
-            <div class="control-bar">
-                <button class="ctrl-btn tall" id="btnDescribe">
-                    <span class="icon">?</span><span>What's Around</span>
-                </button>
-                <button class="ctrl-btn mic" id="btnMic">
-                    <span class="icon">M</span><span>Speak</span>
-                </button>
-                <button class="ctrl-btn tall" id="btnSafe">
-                    <span class="icon">&#10003;</span><span>Is It Safe</span>
-                </button>
-            </div>
+      <div class="overlay">
+        <div class="status-bar">
+          <div
+            class="status-badge badge-safe"
+            id="statusBadge"
+            style="display: none"
+          >
+            SAFE
+          </div>
+          <div class="ai-badge" id="aiBadge">AI Active</div>
+          <!-- Sound detection toggle -->
+          <button
+            class="snd-toggle"
+            id="btnSnd"
+            aria-label="Toggle sound detection"
+            aria-pressed="false"
+            title="Sound Detection"
+          >
+            🔊
+          </button>
+          <!-- Closed caption toggle -->
+          <button
+            class="cc-toggle"
+            id="btnCC"
+            aria-label="Toggle live captions"
+            aria-pressed="false"
+            title="Closed Captions"
+          >
+            <span style="font-size: 15px; font-weight: 800">CC</span>
+          </button>
+          <button
+            class="cam-toggle"
+            id="btnCam"
+            aria-label="Toggle camera preview on or off"
+          >
+            <svg
+              id="camIcon"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path
+                d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
+              />
+              <circle cx="12" cy="13" r="4" />
+            </svg>
+            <span style="font-size: 9px">CAM</span>
+          </button>
         </div>
+
+        <div class="alert-area" id="alertArea">
+          <div
+            class="alert-box safe"
+            id="alertBox"
+            role="alert"
+            aria-live="assertive"
+            aria-atomic="true"
+          >
+            <div class="alert-icon" id="alertIcon">OK</div>
+            <div class="alert-text" id="alertText">Path Clear</div>
+            <div class="alert-detail" id="alertDetail">Walking is safe</div>
+          </div>
+
+          <div class="gesture-hint" id="gestureHint">
+            Tap top to describe · Tap bottom to scan · Swipe for sides
+          </div>
+
+          <div
+            id="debugInfo"
+            style="
+              font-size: 10px;
+              color: #888;
+              margin-top: 8px;
+              font-family: monospace;
+              text-align: center;
+              display: none;
+            "
+          ></div>
+
+          <div class="direction-row">
+            <div class="direction-btn" id="dirLeft">L</div>
+            <div class="direction-btn" id="dirAhead">F</div>
+            <div class="direction-btn" id="dirRight">R</div>
+          </div>
+        </div>
+
+        <!-- Control bar — hidden, wired for assistive tech -->
+        <div class="control-bar">
+          <button class="ctrl-btn tall" id="btnDescribe">
+            <span class="icon">?</span><span>What's Around</span>
+          </button>
+          <button class="ctrl-btn mic" id="btnMic">
+            <span class="icon">M</span><span>Speak</span>
+          </button>
+          <button class="ctrl-btn tall" id="btnSafe">
+            <span class="icon">&#10003;</span><span>Is It Safe</span>
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Caption overlay (always on top, outside .app flow) -->
     <div id="captionOverlay" aria-live="polite" aria-atomic="false">
-        <div id="soundBanner" role="status"></div>
-        <div id="captionBox" role="status"></div>
+      <div id="soundBanner" role="status"></div>
+      <div id="captionBox" role="status"></div>
     </div>
 
     <!-- TensorFlow.js + COCO-SSD (used for object detection AND YAMNet) -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"
-            integrity="sha384-vE8hbVJ4lezako5rlvE7bY0BVzWlFhZncPlckrqNwcUQpVtgbENTgZ8TBbnPjZre"
-            crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"
-            integrity="sha384-7qLdgfEQyO9ZQi9ArRHigK+IBto4XPk468jAqc+fnsXaZIcMAhQeLwzggRK7aESl"
-            crossorigin="anonymous"></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"
+      integrity="sha384-vE8hbVJ4lezako5rlvE7bY0BVzWlFhZncPlckrqNwcUQpVtgbENTgZ8TBbnPjZre"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"
+      integrity="sha384-7qLdgfEQyO9ZQi9ArRHigK+IBto4XPk468jAqc+fnsXaZIcMAhQeLwzggRK7aESl"
+      crossorigin="anonymous"
+    ></script>
 
     <script type="module">
-    (async () => {
+      (async () => {
         try {
-            const m = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js');
+          const m =
+            await import("https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js");
+          window.__txPipeline = m.pipeline;
+          window.__txEnv = m.env;
+          window.dispatchEvent(new CustomEvent("tx-ready"));
+        } catch (e1) {
+          try {
+            const m =
+              await import("https://esm.sh/@xenova/transformers@2.17.2");
             window.__txPipeline = m.pipeline;
             window.__txEnv = m.env;
-            window.dispatchEvent(new CustomEvent('tx-ready'));
-        } catch (e1) {
-            try {
-                const m = await import('https://esm.sh/@xenova/transformers@2.17.2');
-                window.__txPipeline = m.pipeline;
-                window.__txEnv = m.env;
-                window.dispatchEvent(new CustomEvent('tx-ready'));
-            } catch (e2) {
-                console.error('Transformers.js failed to load:', e2.message || e2);
-                window.dispatchEvent(new CustomEvent('tx-failed'));
-            }
+            window.dispatchEvent(new CustomEvent("tx-ready"));
+          } catch (e2) {
+            console.error("Transformers.js failed to load:", e2.message || e2);
+            window.dispatchEvent(new CustomEvent("tx-failed"));
+          }
         }
-    })();
+      })();
     </script>
 
     <script>
-    // ========== CONFIG ==========
-    const CONFIG = {
+      // ========== CONFIG ==========
+      const CONFIG = {
         WORKER_URL: "https://guidedog.kpremks.workers.dev",
-        
+
         DANGER_ZONE: 1.0,
         WARNING_ZONE: 2.0,
         AWARENESS_ZONE: 4.0,
-        
+
         AI_SCAN_INTERVAL: 5000,
         DEPTH_SCAN_INTERVAL: 400,
         LOCAL_SCAN_INTERVAL: 200,
@@ -525,54 +881,66 @@
         HIGH_CONFIDENCE: 0.7,
 
         CRITICAL: ["car", "bus", "truck", "motorcycle", "bicycle"],
-        OBSTACLES: ["person", "chair", "bench", "couch", "bed", "dining table",
-                    "refrigerator", "backpack",
-                    "fire hydrant", "stop sign", "parking meter", "laptop", "tv"],
+        OBSTACLES: [
+          "person",
+          "chair",
+          "bench",
+          "couch",
+          "bed",
+          "dining table",
+          "refrigerator",
+          "backpack",
+          "fire hydrant",
+          "stop sign",
+          "parking meter",
+          "laptop",
+          "tv",
+        ],
 
         // YAMNet — sound categories worth announcing to the user.
         // Maps partial class name fragments → friendly spoken label.
         // YAMNet class list: https://github.com/google-research/audioset_ontology
         SOUND_CATEGORIES: {
-            'Siren':          { label: '🚨 Siren nearby',       urgency: 'danger'  },
-            'Fire alarm':     { label: '🔥 Fire alarm',          urgency: 'danger'  },
-            'Smoke detector': { label: '🔥 Smoke detector',      urgency: 'danger'  },
-            'Alarm':          { label: '⚠️ Alarm sounding',      urgency: 'warning' },
-            'Car alarm':      { label: '🚗 Car alarm',           urgency: 'warning' },
-            'Dog':            { label: '🐕 Dog barking',         urgency: 'warning' },
-            'Bark':           { label: '🐕 Dog barking',         urgency: 'warning' },
-            'Gunshot':        { label: '⚠️ Loud bang/gunshot',   urgency: 'danger'  },
-            'Explosion':      { label: '💥 Explosion',           urgency: 'danger'  },
-            'Traffic':        { label: '🚦 Traffic noise',       urgency: 'warning' },
-            'Car':            { label: '🚗 Vehicle nearby',      urgency: 'warning' },
-            'Horn':           { label: '📯 Horn honking',        urgency: 'danger'  },
-            'Bicycle bell':   { label: '🚲 Bicycle nearby',      urgency: 'warning' },
-            'Bell':           { label: '🔔 Bell ringing',        urgency: 'info'    },
-            'Speech':         { label: '🗣️ Someone speaking',   urgency: 'info'    },
-            'Music':          { label: '🎵 Music playing',       urgency: 'info'    },
-            'Crying':         { label: '😢 Crying nearby',       urgency: 'info'    },
-            'Laughter':       { label: '😄 Laughter nearby',     urgency: 'info'    },
-            'Baby cry':       { label: '👶 Baby crying',         urgency: 'info'    },
-            'Crowd':          { label: '👥 Crowd nearby',        urgency: 'info'    },
-            'Rain':           { label: '🌧️ Rain detected',      urgency: 'info'    },
-            'Thunder':        { label: '⛈️ Thunder',            urgency: 'warning' },
+          Siren: { label: "🚨 Siren nearby", urgency: "danger" },
+          "Fire alarm": { label: "🔥 Fire alarm", urgency: "danger" },
+          "Smoke detector": { label: "🔥 Smoke detector", urgency: "danger" },
+          Alarm: { label: "⚠️ Alarm sounding", urgency: "warning" },
+          "Car alarm": { label: "🚗 Car alarm", urgency: "warning" },
+          Dog: { label: "🐕 Dog barking", urgency: "warning" },
+          Bark: { label: "🐕 Dog barking", urgency: "warning" },
+          Gunshot: { label: "⚠️ Loud bang/gunshot", urgency: "danger" },
+          Explosion: { label: "💥 Explosion", urgency: "danger" },
+          Traffic: { label: "🚦 Traffic noise", urgency: "warning" },
+          Car: { label: "🚗 Vehicle nearby", urgency: "warning" },
+          Horn: { label: "📯 Horn honking", urgency: "danger" },
+          "Bicycle bell": { label: "🚲 Bicycle nearby", urgency: "warning" },
+          Bell: { label: "🔔 Bell ringing", urgency: "info" },
+          Speech: { label: "🗣️ Someone speaking", urgency: "info" },
+          Music: { label: "🎵 Music playing", urgency: "info" },
+          Crying: { label: "😢 Crying nearby", urgency: "info" },
+          Laughter: { label: "😄 Laughter nearby", urgency: "info" },
+          "Baby cry": { label: "👶 Baby crying", urgency: "info" },
+          Crowd: { label: "👥 Crowd nearby", urgency: "info" },
+          Rain: { label: "🌧️ Rain detected", urgency: "info" },
+          Thunder: { label: "⛈️ Thunder", urgency: "warning" },
         },
 
-        YAMNET_INTERVAL: 1000,         // run YAMNet every 1s
-        YAMNET_SCORE_THRESHOLD: 0.12,  // minimum score to announce a sound
-        SOUND_BANNER_DURATION: 4000,   // ms to show the sound banner
-        SOUND_SPEAK_COOLDOWN: 6000,    // don't re-speak same sound for 6s
+        YAMNET_INTERVAL: 1000, // run YAMNet every 1s
+        YAMNET_SCORE_THRESHOLD: 0.12, // minimum score to announce a sound
+        SOUND_BANNER_DURATION: 4000, // ms to show the sound banner
+        SOUND_SPEAK_COOLDOWN: 6000, // don't re-speak same sound for 6s
 
         // Caption
-        CAPTION_HIDE_DELAY: 5000,      // hide caption box after 5s of silence
-    };
-    
-    // ========== STATE ==========
-    const state = {
+        CAPTION_HIDE_DELAY: 5000, // hide caption box after 5s of silence
+      };
+
+      // ========== STATE ==========
+      const state = {
         video: null,
         model: null,
         isRunning: false,
         isPaused: false,
-        
+
         localDetections: [],
         aiResult: null,
         lastAIScan: 0,
@@ -586,8 +954,8 @@
         depthHistory: [],
         lastDepthScan: 0,
         depthCalibration: null,
-        
-        currentStatus: 'safe',
+
+        currentStatus: "safe",
         currentObstacle: null,
 
         lastAlerts: {},
@@ -595,10 +963,10 @@
         lastVoice: 0,
         lastAlertSound: 0,
         lastDangerAnnounce: 0,
-        
+
         recognition: null,
         isListening: false,
-        
+
         audioCtx: null,
         audioUnlocked: false,
 
@@ -607,1091 +975,1634 @@
         yamnetEnabled: false,
         yamnetMicStream: null,
         yamnetInterval: null,
-        lastSoundSpeak: {},     // key → timestamp, rate-limits per-category announcements
+        lastSoundSpeak: {}, // key → timestamp, rate-limits per-category announcements
 
         // ── Closed captions ──
         captionEnabled: false,
         captionRecognition: null,
         captionHideTimer: null,
-        captionFinalText: '',
-    };
-    
-    // ========== AUDIO ==========
-    function initAudio() {
-        try {
-            state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        } catch (e) {
-            console.warn('Web Audio API unavailable:', e);
-            const banner = document.getElementById('aiBadge');
-            if (banner) banner.textContent = 'Audio Unavailable';
-        }
-    }
-    
-    function resumeAudio() {
-        if (state.audioCtx?.state === 'suspended') {
-            state.audioCtx.resume().catch(() => {});
-        }
-    }
+        captionFinalText: "",
+      };
 
-    function unlockAudio() {
+      // ========== AUDIO ==========
+      function initAudio() {
+        try {
+          state.audioCtx = new (
+            window.AudioContext || window.webkitAudioContext
+          )();
+        } catch (e) {
+          console.warn("Web Audio API unavailable:", e);
+          const banner = document.getElementById("aiBadge");
+          if (banner) banner.textContent = "Audio Unavailable";
+        }
+      }
+
+      function resumeAudio() {
+        if (state.audioCtx?.state === "suspended") {
+          state.audioCtx.resume().catch(() => {});
+        }
+      }
+
+      function unlockAudio() {
         resumeAudio();
         if (!state.audioUnlocked) {
-            try {
-                const primer = new SpeechSynthesisUtterance(' ');
-                primer.volume = 0;
-                primer.rate = 10;
-                speechSynthesis.speak(primer);
-            } catch (e) {}
-            state.audioUnlocked = true;
+          try {
+            const primer = new SpeechSynthesisUtterance(" ");
+            primer.volume = 0;
+            primer.rate = 10;
+            speechSynthesis.speak(primer);
+          } catch (e) {}
+          state.audioUnlocked = true;
         }
-    }
-    
-    function playBeep(frequency, duration, pan = 0, volume = 0.5) {
+      }
+
+      function playBeep(frequency, duration, pan = 0, volume = 0.5) {
         if (!state.audioCtx) return;
         resumeAudio();
         try {
-            const osc = state.audioCtx.createOscillator();
-            const gain = state.audioCtx.createGain();
-            const panner = state.audioCtx.createStereoPanner();
-            osc.frequency.value = frequency;
-            osc.type = 'sine';
-            gain.gain.setValueAtTime(volume, state.audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, state.audioCtx.currentTime + duration);
-            panner.pan.value = Math.max(-1, Math.min(1, pan));
-            osc.connect(gain);
-            gain.connect(panner);
-            panner.connect(state.audioCtx.destination);
-            osc.start();
-            osc.stop(state.audioCtx.currentTime + duration);
-            osc.onended = () => { osc.disconnect(); gain.disconnect(); panner.disconnect(); };
-        } catch (e) { console.warn('playBeep error:', e); }
-    }
-    
-    function playAlertSound(position, urgency) {
-        let pan = 0;
-        if (position === 'left') pan = -0.8;
-        else if (position === 'right') pan = 0.8;
-        if (urgency === 'danger') {
-            playBeep(1200, 0.1, pan, 0.7);
-            setTimeout(() => playBeep(1200, 0.1, pan, 0.7), 150);
-            setTimeout(() => playBeep(1200, 0.1, pan, 0.7), 300);
-        } else if (urgency === 'warning') {
-            playBeep(800, 0.15, pan, 0.5);
-            setTimeout(() => playBeep(800, 0.15, pan, 0.5), 200);
-        } else {
-            playBeep(500, 0.2, pan, 0.3);
+          const osc = state.audioCtx.createOscillator();
+          const gain = state.audioCtx.createGain();
+          const panner = state.audioCtx.createStereoPanner();
+          osc.frequency.value = frequency;
+          osc.type = "sine";
+          gain.gain.setValueAtTime(volume, state.audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(
+            0.01,
+            state.audioCtx.currentTime + duration,
+          );
+          panner.pan.value = Math.max(-1, Math.min(1, pan));
+          osc.connect(gain);
+          gain.connect(panner);
+          panner.connect(state.audioCtx.destination);
+          osc.start();
+          osc.stop(state.audioCtx.currentTime + duration);
+          osc.onended = () => {
+            osc.disconnect();
+            gain.disconnect();
+            panner.disconnect();
+          };
+        } catch (e) {
+          console.warn("playBeep error:", e);
         }
-    }
-    
-    // ========== VIBRATION ==========
-    function vibrate(pattern) {
+      }
+
+      function playAlertSound(position, urgency) {
+        let pan = 0;
+        if (position === "left") pan = -0.8;
+        else if (position === "right") pan = 0.8;
+        if (urgency === "danger") {
+          playBeep(1200, 0.1, pan, 0.7);
+          setTimeout(() => playBeep(1200, 0.1, pan, 0.7), 150);
+          setTimeout(() => playBeep(1200, 0.1, pan, 0.7), 300);
+        } else if (urgency === "warning") {
+          playBeep(800, 0.15, pan, 0.5);
+          setTimeout(() => playBeep(800, 0.15, pan, 0.5), 200);
+        } else {
+          playBeep(500, 0.2, pan, 0.3);
+        }
+      }
+
+      // ========== VIBRATION ==========
+      function vibrate(pattern) {
         const now = Date.now();
         if (now - state.lastVibrate < CONFIG.VIBRATE_COOLDOWN) return;
         state.lastVibrate = now;
-        try { navigator.vibrate?.(pattern); } catch (e) {}
-    }
-    
-    function vibrateAlert(urgency) {
-        if (urgency === 'danger') vibrate([200, 100, 200, 100, 200]);
-        else if (urgency === 'warning') vibrate([150, 100, 150]);
-        else vibrate([100]);
-    }
-    
-    // ========== SPEECH ==========
-    document.addEventListener('touchstart', unlockAudio, { once: true, passive: true });
-    document.addEventListener('click', unlockAudio, { once: true });
-
-    let _currentSpeechPriority = 0;
-    let _lastSpeechTime = 0;
-
-    function doSpeak(text, rate = 1.1) {
         try {
-            const u = new SpeechSynthesisUtterance(text);
-            u.rate = rate;
-            u.volume = 1.0;
-            u.onend = () => { _currentSpeechPriority = 0; };
-            u.onerror = () => { _currentSpeechPriority = 0; };
-            speechSynthesis.speak(u);
-            _lastSpeechTime = Date.now();
-            console.log('Speaking:', text);
-        } catch (e) { console.warn('Speech error:', e); }
-    }
+          navigator.vibrate?.(pattern);
+        } catch (e) {}
+      }
 
-    function speak(text, force = false) {
+      function vibrateAlert(urgency) {
+        if (urgency === "danger") vibrate([200, 100, 200, 100, 200]);
+        else if (urgency === "warning") vibrate([150, 100, 150]);
+        else vibrate([100]);
+      }
+
+      // ========== SPEECH ==========
+      document.addEventListener("touchstart", unlockAudio, {
+        once: true,
+        passive: true,
+      });
+      document.addEventListener("click", unlockAudio, { once: true });
+
+      let _currentSpeechPriority = 0;
+      let _lastSpeechTime = 0;
+
+      function doSpeak(text, rate = 1.1) {
+        try {
+          const u = new SpeechSynthesisUtterance(text);
+          u.rate = rate;
+          u.volume = 1.0;
+          u.onend = () => {
+            _currentSpeechPriority = 0;
+          };
+          u.onerror = () => {
+            _currentSpeechPriority = 0;
+          };
+          speechSynthesis.speak(u);
+          _lastSpeechTime = Date.now();
+          console.log("Speaking:", text);
+        } catch (e) {
+          console.warn("Speech error:", e);
+        }
+      }
+
+      function speak(text, force = false) {
         if (!text) return;
         const now = Date.now();
         if (!force && now - _lastSpeechTime < CONFIG.VOICE_COOLDOWN) return;
         if (state.isListening) stopListening();
-        if (force) { try { speechSynthesis.cancel(); } catch(e){} }
+        if (force) {
+          try {
+            speechSynthesis.cancel();
+          } catch (e) {}
+        }
         _currentSpeechPriority = 0;
         doSpeak(text);
-    }
+      }
 
-    function speakAlert(key, text, priority = 2) {
+      function speakAlert(key, text, priority = 2) {
         const now = Date.now();
         const ALERT_COOLDOWN = 3000;
         if (now - (state.lastAlerts[key] || 0) < ALERT_COOLDOWN) return;
         state.lastAlerts[key] = now;
         if (state.isListening) stopListening();
         if (priority >= 3) {
-            try { speechSynthesis.cancel(); } catch(e){}
-            setTimeout(() => doSpeak(text, 1.3), 50);
+          try {
+            speechSynthesis.cancel();
+          } catch (e) {}
+          setTimeout(() => doSpeak(text, 1.3), 50);
         } else {
-            doSpeak(text, 1.1);
+          doSpeak(text, 1.1);
         }
         _currentSpeechPriority = priority;
-    }
-    
-    // ========== SPEECH RECOGNITION (voice commands) ==========
-    function initSpeechRecognition() {
+      }
+
+      // ========== SPEECH RECOGNITION (voice commands) ==========
+      function initSpeechRecognition() {
         try {
-            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SR) return false;
-            state.recognition = new SR();
-            state.recognition.continuous = false;
-            state.recognition.interimResults = false;
-            state.recognition.lang = 'en-US';
-            state.recognition.onstart = () => { state.isListening = true; updateMicButton(true); };
-            state.recognition.onresult = (e) => {
-                const text = e.results[0][0].transcript.toLowerCase();
-                console.log('Heard:', text);
-                handleVoiceCommand(text);
-            };
-            state.recognition.onend = () => { state.isListening = false; updateMicButton(false); };
-            state.recognition.onerror = (e) => {
-                state.isListening = false;
-                updateMicButton(false);
-                if (e.error === 'no-speech') speak('No speech heard. Tap microphone and try again.');
-            };
-            return true;
-        } catch (e) { return false; }
-    }
-    
-    function startListening() {
-        if (!state.recognition) { speak('Voice not available'); return; }
-        if (state.isListening) { stopListening(); return; }
+          const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+          if (!SR) return false;
+          state.recognition = new SR();
+          state.recognition.continuous = false;
+          state.recognition.interimResults = false;
+          state.recognition.lang = "en-US";
+          state.recognition.onstart = () => {
+            state.isListening = true;
+            updateMicButton(true);
+          };
+          state.recognition.onresult = (e) => {
+            const text = e.results[0][0].transcript.toLowerCase();
+            console.log("Heard:", text);
+            handleVoiceCommand(text);
+          };
+          state.recognition.onend = () => {
+            state.isListening = false;
+            updateMicButton(false);
+          };
+          state.recognition.onerror = (e) => {
+            state.isListening = false;
+            updateMicButton(false);
+            if (e.error === "no-speech")
+              speak("No speech heard. Tap microphone and try again.");
+          };
+          return true;
+        } catch (e) {
+          return false;
+        }
+      }
+
+      function startListening() {
+        if (!state.recognition) {
+          speak("Voice not available");
+          return;
+        }
+        if (state.isListening) {
+          stopListening();
+          return;
+        }
         speechSynthesis.cancel();
         try {
-            state.recognition.start();
-            vibrate([50]);
+          state.recognition.start();
+          vibrate([50]);
         } catch (e) {
-            try { state.recognition.stop(); setTimeout(() => state.recognition.start(), 100); } catch (e2) {}
+          try {
+            state.recognition.stop();
+            setTimeout(() => state.recognition.start(), 100);
+          } catch (e2) {}
         }
-    }
-    
-    function stopListening() {
-        try { state.recognition?.stop(); } catch (e) {}
+      }
+
+      function stopListening() {
+        try {
+          state.recognition?.stop();
+        } catch (e) {}
         state.isListening = false;
         updateMicButton(false);
-    }
-    
-    function updateMicButton(listening) {
-        const btn = document.getElementById('btnMic');
-        if (listening) {
-            btn.classList.add('listening');
-            btn.querySelector('span:last-child').textContent = 'Listening...';
-        } else {
-            btn.classList.remove('listening');
-            btn.querySelector('span:last-child').textContent = 'Speak';
-        }
-    }
-    
-    function handleVoiceCommand(text) {
-        vibrate([30]);
-        if (text.includes('start') || text.includes('begin')) {
-            if (document.getElementById('help').classList.contains('visible')) { hideHelp(); return; }
-        }
-        if (text.includes('stop') || text.includes('pause') || text.includes('quiet')) {
-            state.isPaused = true; speak('Alerts paused. Say resume to continue.', true); return;
-        }
-        if (text.includes('resume') || text.includes('continue')) {
-            state.isPaused = false; speak('Alerts resumed.', true); return;
-        }
-        if (text.includes('caption') || text.includes('subtitle') || text.includes('closed caption')) {
-            toggleCaptions(); return;
-        }
-        if (text.includes('sound') || text.includes('listen') || text.includes('audio detect')) {
-            toggleSoundDetection(); return;
-        }
-        if (text.includes('color') || text.includes('colour')) { webIdentifyColor(); return; }
-        if (text.includes('bill') || text.includes('dollar') || text.includes('money') || text.includes('cash') || text.includes('currency')) {
-            webIdentifyCurrency(); return;
-        }
-        if (text.includes('read')) { webRecognizeText(); return; }
-        if (text.includes('around') || text.includes('describe') || text.includes('what')) { describeArea(); return; }
-        if (text.includes('safe') || text.includes('clear') || text.includes('walk')) { checkSafety(); return; }
-        if (text.includes('left')) { speakDirection('left'); return; }
-        if (text.includes('right')) { speakDirection('right'); return; }
-        if (text.includes('scan') || text.includes('stair') || text.includes('door')) { triggerAIScan(); return; }
-        if (text.includes('help')) { showHelp(); return; }
-        speak('Say: what is around, is it safe, left, right, or scan.', true);
-    }
+      }
 
-    // ══════════════════════════════════════════════════════════════════
-    //  CLOSED CAPTIONING — Web Speech API, continuous mode
-    // ══════════════════════════════════════════════════════════════════
-    function initCaptionRecognition() {
+      function updateMicButton(listening) {
+        const btn = document.getElementById("btnMic");
+        if (listening) {
+          btn.classList.add("listening");
+          btn.querySelector("span:last-child").textContent = "Listening...";
+        } else {
+          btn.classList.remove("listening");
+          btn.querySelector("span:last-child").textContent = "Speak";
+        }
+      }
+
+      function handleVoiceCommand(text) {
+        vibrate([30]);
+        if (text.includes("start") || text.includes("begin")) {
+          if (document.getElementById("help").classList.contains("visible")) {
+            hideHelp();
+            return;
+          }
+        }
+        if (
+          text.includes("stop") ||
+          text.includes("pause") ||
+          text.includes("quiet")
+        ) {
+          state.isPaused = true;
+          speak("Alerts paused. Say resume to continue.", true);
+          return;
+        }
+        if (text.includes("resume") || text.includes("continue")) {
+          state.isPaused = false;
+          speak("Alerts resumed.", true);
+          return;
+        }
+        if (
+          text.includes("caption") ||
+          text.includes("subtitle") ||
+          text.includes("closed caption")
+        ) {
+          toggleCaptions();
+          return;
+        }
+        if (
+          text.includes("sound") ||
+          text.includes("listen") ||
+          text.includes("audio detect")
+        ) {
+          toggleSoundDetection();
+          return;
+        }
+        if (text.includes("color") || text.includes("colour")) {
+          webIdentifyColor();
+          return;
+        }
+        if (
+          text.includes("bill") ||
+          text.includes("dollar") ||
+          text.includes("money") ||
+          text.includes("cash") ||
+          text.includes("currency")
+        ) {
+          webIdentifyCurrency();
+          return;
+        }
+        if (text.includes("read")) {
+          webRecognizeText();
+          return;
+        }
+        if (
+          text.includes("around") ||
+          text.includes("describe") ||
+          text.includes("what")
+        ) {
+          describeArea();
+          return;
+        }
+        if (
+          text.includes("safe") ||
+          text.includes("clear") ||
+          text.includes("walk")
+        ) {
+          checkSafety();
+          return;
+        }
+        if (text.includes("left")) {
+          speakDirection("left");
+          return;
+        }
+        if (text.includes("right")) {
+          speakDirection("right");
+          return;
+        }
+        if (
+          text.includes("scan") ||
+          text.includes("stair") ||
+          text.includes("door")
+        ) {
+          triggerAIScan();
+          return;
+        }
+        if (text.includes("help")) {
+          showHelp();
+          return;
+        }
+        speak("Say: what is around, is it safe, left, right, or scan.", true);
+      }
+
+      // ══════════════════════════════════════════════════════════════════
+      //  CLOSED CAPTIONING — Web Speech API, continuous mode
+      // ══════════════════════════════════════════════════════════════════
+      function initCaptionRecognition() {
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SR) {
-            console.warn('SpeechRecognition not supported — captions unavailable');
-            return false;
+          console.warn(
+            "SpeechRecognition not supported — captions unavailable",
+          );
+          return false;
         }
         const r = new SR();
         r.continuous = true;
         r.interimResults = true;
-        r.lang = 'en-US';
+        r.lang = "en-US";
         r.maxAlternatives = 1;
 
         r.onresult = (e) => {
-            let final = '';
-            let interim = '';
-            for (let i = e.resultIndex; i < e.results.length; i++) {
-                const t = e.results[i][0].transcript;
-                if (e.results[i].isFinal) final += t + ' ';
-                else interim += t;
-            }
-            if (final) state.captionFinalText = (state.captionFinalText + final).slice(-300);
-            showCaption(state.captionFinalText, interim);
+          let final = "";
+          let interim = "";
+          for (let i = e.resultIndex; i < e.results.length; i++) {
+            const t = e.results[i][0].transcript;
+            if (e.results[i].isFinal) final += t + " ";
+            else interim += t;
+          }
+          if (final)
+            state.captionFinalText = (state.captionFinalText + final).slice(
+              -300,
+            );
+          showCaption(state.captionFinalText, interim);
         };
 
         r.onerror = (e) => {
-            if (e.error === 'no-speech') return;       // benign
-            if (e.error === 'aborted') return;          // we called stop()
-            console.warn('Caption recognition error:', e.error);
+          if (e.error === "no-speech") return; // benign
+          if (e.error === "aborted") return; // we called stop()
+          console.warn("Caption recognition error:", e.error);
         };
 
         r.onend = () => {
-            // Auto-restart if captions are still enabled and app is running
-            if (state.captionEnabled && state.isRunning) {
-                try { r.start(); } catch (_) {}
-            }
+          if (state.captionEnabled) {
+            setTimeout(() => {
+              try {
+                r.start();
+              } catch (_) {}
+            }, 300);
+          }
         };
 
         state.captionRecognition = r;
         return true;
-    }
+      }
 
-    function showCaption(finalText, interimText) {
-        const box = document.getElementById('captionBox');
-        const combined = (finalText + (interimText ? `<span class="interim">${escapeHTML(interimText)}</span>` : '')).trim();
-        if (!combined) { hideCaption(); return; }
+      function showCaption(finalText, interimText) {
+        const box = document.getElementById("captionBox");
+        const combined = (
+          finalText +
+          (interimText
+            ? `<span class="interim">${escapeHTML(interimText)}</span>`
+            : "")
+        ).trim();
+        if (!combined) {
+          hideCaption();
+          return;
+        }
 
-        box.innerHTML = `<span class="final">${escapeHTML(finalText)}</span>` +
-                        (interimText ? `<span class="interim">${escapeHTML(interimText)}</span>` : '');
-        box.classList.add('visible');
+        box.innerHTML =
+          `<span class="final">${escapeHTML(finalText)}</span>` +
+          (interimText
+            ? `<span class="interim">${escapeHTML(interimText)}</span>`
+            : "");
+        box.classList.add("visible");
 
         // Auto-hide after silence
         clearTimeout(state.captionHideTimer);
         state.captionHideTimer = setTimeout(() => {
-            state.captionFinalText = '';
-            hideCaption();
+          state.captionFinalText = "";
+          hideCaption();
         }, CONFIG.CAPTION_HIDE_DELAY);
-    }
+      }
 
-    function hideCaption() {
-        const box = document.getElementById('captionBox');
-        box.classList.remove('visible');
-    }
+      function hideCaption() {
+        const box = document.getElementById("captionBox");
+        box.classList.remove("visible");
+      }
 
-    function escapeHTML(str) {
-        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    }
+      function escapeHTML(str) {
+        return str
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
 
-    function toggleCaptions() {
+      function toggleCaptions() {
         if (!state.captionRecognition) {
-            const ok = initCaptionRecognition();
-            if (!ok) { speak('Captions not supported on this device.', true); return; }
+          const ok = initCaptionRecognition();
+          if (!ok) {
+            speak("Captions not supported on this device.", true);
+            return;
+          }
         }
 
         state.captionEnabled = !state.captionEnabled;
-        const btn = document.getElementById('btnCC');
-        btn.classList.toggle('on', state.captionEnabled);
-        btn.setAttribute('aria-pressed', state.captionEnabled ? 'true' : 'false');
+        const btn = document.getElementById("btnCC");
+        btn.classList.toggle("on", state.captionEnabled);
+        btn.setAttribute(
+          "aria-pressed",
+          state.captionEnabled ? "true" : "false",
+        );
 
         if (state.captionEnabled) {
-            state.captionFinalText = '';
-            try {
-                // Caption recognition uses the same microphone as voice commands.
-                // If voice command recognition is active, stop it first to avoid conflicts.
-                if (state.isListening) stopListening();
-                state.captionRecognition.start();
-            } catch (e) {
-                console.warn('Caption start error:', e);
-            }
-            speak('Live captions on.', true);
+          state.captionFinalText = "";
+          try {
+            // Caption recognition uses the same microphone as voice commands.
+            // If voice command recognition is active, stop it first to avoid conflicts.
+            if (state.isListening) stopListening();
+            state.captionRecognition.start();
+          } catch (e) {
+            console.warn("Caption start error:", e);
+          }
+          speak("Live captions on.", true);
         } else {
-            try { state.captionRecognition.stop(); } catch (e) {}
-            hideCaption();
-            speak('Live captions off.', true);
+          try {
+            state.captionRecognition.stop();
+          } catch (e) {}
+          hideCaption();
+          speak("Live captions off.", true);
         }
-    }
+      }
 
-    // ══════════════════════════════════════════════════════════════════
-    //  SOUND DETECTION — YAMNet via TensorFlow.js
-    //
-    //  Audio capture: MediaRecorder (1s chunks) → decodeAudioData →
-    //  mono Float32 resampled to 16 kHz → YAMNet inference.
-    //
-    //  Falls back to energy-based detection (RMS + ZCR) if the model
-    //  can't load, so the button always does something useful.
-    // ══════════════════════════════════════════════════════════════════
+      // ══════════════════════════════════════════════════════════════════
+      //  SOUND DETECTION — YAMNet via TensorFlow.js
+      //
+      //  Audio capture: MediaRecorder (1s chunks) → decodeAudioData →
+      //  mono Float32 resampled to 16 kHz → YAMNet inference.
+      //
+      //  Falls back to energy-based detection (RMS + ZCR) if the model
+      //  can't load, so the button always does something useful.
+      // ══════════════════════════════════════════════════════════════════
 
-    let _yamnetClasses = null;  // string[521] once loaded
+      let _yamnetClasses = null; // string[521] once loaded
 
-    // Fetch YAMNet class names in the background. Non-blocking — inference
-    // works without it (uses generic "class_N" labels until it arrives).
-    async function fetchYAMNetClasses() {
+      // Fetch YAMNet class names in the background. Non-blocking — inference
+      // works without it (uses generic "class_N" labels until it arrives).
+      async function fetchYAMNetClasses() {
         try {
-            const r = await fetch(
-                'https://raw.githubusercontent.com/tensorflow/models/master/research/audioset/yamnet/yamnet_class_map.csv',
-                { cache: 'force-cache' }
-            );
-            if (!r.ok) return;
-            const csv = await r.text();
-            _yamnetClasses = csv.split('\n').slice(1).filter(Boolean)
-                .map(line => (line.split(',')[2] || '').replace(/"/g, '').trim());
-            console.log('YAMNet classes loaded:', _yamnetClasses.length);
+          const r = await fetch(
+            "https://raw.githubusercontent.com/tensorflow/models/master/research/audioset/yamnet/yamnet_class_map.csv",
+            { cache: "force-cache" },
+          );
+          if (!r.ok) return;
+          const csv = await r.text();
+          _yamnetClasses = csv
+            .split("\n")
+            .slice(1)
+            .filter(Boolean)
+            .map((line) => (line.split(",")[2] || "").replace(/"/g, "").trim());
+          console.log("YAMNet classes loaded:", _yamnetClasses.length);
         } catch (e) {
-            console.warn('YAMNet class CSV fetch failed:', e.message);
+          console.warn("YAMNet class CSV fetch failed:", e.message);
         }
-    }
+      }
 
-    async function loadYAMNet() {
+      async function loadYAMNet() {
         if (state.yamnetModel) return true;
-        const badge = document.getElementById('aiBadge');
-        if (badge) badge.textContent = 'Loading sound model…';
+        const badge = document.getElementById("aiBadge");
+        if (badge) badge.textContent = "Loading sound model…";
 
         // Try multiple known-good CORS-friendly hosts for the TFJS model.
         const MODEL_URLS = [
-            'https://tfhub.dev/google/tfjs-model/yamnet/tfjs/1/model.json',
-            'https://storage.googleapis.com/tfjs-models/savedmodel/yamnet/model.json',
+          "https://tfhub.dev/google/tfjs-model/yamnet/tfjs/1/model.json",
+          "https://storage.googleapis.com/tfjs-models/savedmodel/yamnet/model.json",
         ];
 
         for (const url of MODEL_URLS) {
-            try {
-                console.log('Trying YAMNet from:', url);
-                state.yamnetModel = await tf.loadGraphModel(url);
-                console.log('YAMNet loaded OK from:', url);
-                fetchYAMNetClasses();  // background fetch of class names
-                break;
-            } catch (e) {
-                console.warn('YAMNet load failed from', url, '–', e.message);
-                state.yamnetModel = null;
-            }
+          try {
+            console.log("Trying YAMNet from:", url);
+            state.yamnetModel = await tf.loadGraphModel(url);
+            console.log("YAMNet loaded OK from:", url);
+            fetchYAMNetClasses(); // background fetch of class names
+            break;
+          } catch (e) {
+            console.warn("YAMNet load failed from", url, "–", e.message);
+            state.yamnetModel = null;
+          }
         }
 
         if (!state.yamnetModel) {
-            // Energy-based fallback: works without any model download.
-            // Detects loud transients (alarms, sirens, claps) via RMS + ZCR.
-            console.warn('YAMNet model unavailable — using energy-based fallback');
-            state.yamnetModel = 'energy-fallback';
+          // Energy-based fallback: works without any model download.
+          // Detects loud transients (alarms, sirens, claps) via RMS + ZCR.
+          console.warn(
+            "YAMNet model unavailable — using energy-based fallback",
+          );
+          state.yamnetModel = "energy-fallback";
         }
 
         if (badge) {
-            badge.textContent = (state.depthPipeline || state.xrDepthActive)
-                ? 'AI + Depth + Sound Active' : 'AI + Sound Active';
+          badge.textContent =
+            state.depthPipeline || state.xrDepthActive
+              ? "AI + Depth + Sound Active"
+              : "AI + Sound Active";
         }
         return true;
-    }
+      }
 
-    // ── MediaRecorder-based audio capture ─────────────────────────────────────
-    // Records 1-second chunks, converts to PCM via decodeAudioData, then
-    // runs inference. Avoids the deprecated & broken ScriptProcessor API.
-    let _yamnetRecorder = null;
-    let _yamnetChunks   = [];
+      // ── MediaRecorder-based audio capture ─────────────────────────────────────
+      // Records 1-second chunks, converts to PCM via decodeAudioData, then
+      // runs inference. Avoids the deprecated & broken ScriptProcessor API.
+      let _yamnetRecorder = null;
+      let _yamnetChunks = [];
 
-    function startYAMNetRecorder() {
+      function startYAMNetRecorder() {
         if (!state.yamnetMicStream) return;
         try {
-            const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg', '']
-                .find(t => !t || MediaRecorder.isTypeSupported(t)) || '';
-            _yamnetRecorder = new MediaRecorder(
-                state.yamnetMicStream,
-                mimeType ? { mimeType } : {}
-            );
-            _yamnetChunks = [];
+          const mimeType =
+            ["audio/webm;codecs=opus", "audio/webm", "audio/ogg", ""].find(
+              (t) => !t || MediaRecorder.isTypeSupported(t),
+            ) || "";
+          _yamnetRecorder = new MediaRecorder(
+            state.yamnetMicStream,
+            mimeType ? { mimeType } : {},
+          );
+          _yamnetChunks = [];
 
-            _yamnetRecorder.ondataavailable = e => {
-                if (e.data?.size > 0) _yamnetChunks.push(e.data);
-            };
+          _yamnetRecorder.ondataavailable = (e) => {
+            if (e.data?.size > 0) _yamnetChunks.push(e.data);
+          };
 
-            _yamnetRecorder.onstop = async () => {
-                const chunks = _yamnetChunks.splice(0);
-                if (!chunks.length || !state.yamnetEnabled) return;
+          _yamnetRecorder.onstop = async () => {
+            const chunks = _yamnetChunks.splice(0);
+            if (!chunks.length || !state.yamnetEnabled) return;
 
-                const blob = new Blob(chunks, {
-                    type: _yamnetRecorder.mimeType || 'audio/webm'
-                });
-                await classifyAudioBlob(blob);
+            const blob = new Blob(chunks, {
+              type: _yamnetRecorder.mimeType || "audio/webm",
+            });
+            await classifyAudioBlob(blob);
 
-                // Restart for the next chunk if still enabled
-                if (state.yamnetEnabled && state.yamnetMicStream) {
-                    _yamnetChunks = [];
-                    try {
-                        _yamnetRecorder.start();
-                        setTimeout(() => {
-                            if (_yamnetRecorder?.state === 'recording') _yamnetRecorder.stop();
-                        }, CONFIG.YAMNET_INTERVAL);
-                    } catch (_) {}
-                }
-            };
+            // Restart for the next chunk if still enabled
+            if (state.yamnetEnabled && state.yamnetMicStream) {
+              _yamnetChunks = [];
+              try {
+                _yamnetRecorder.start();
+                setTimeout(() => {
+                  if (_yamnetRecorder?.state === "recording")
+                    _yamnetRecorder.stop();
+                }, CONFIG.YAMNET_INTERVAL);
+              } catch (_) {}
+            }
+          };
 
-            _yamnetRecorder.start();
-            setTimeout(() => {
-                if (_yamnetRecorder?.state === 'recording') _yamnetRecorder.stop();
-            }, CONFIG.YAMNET_INTERVAL);
-
+          _yamnetRecorder.start();
+          setTimeout(() => {
+            if (_yamnetRecorder?.state === "recording") _yamnetRecorder.stop();
+          }, CONFIG.YAMNET_INTERVAL);
         } catch (e) {
-            console.error('MediaRecorder setup error:', e);
+          console.error("MediaRecorder setup error:", e);
         }
-    }
+      }
 
-    async function classifyAudioBlob(blob) {
+      async function classifyAudioBlob(blob) {
         if (!state.audioCtx) return;
         try {
-            resumeAudio();
-            const arrayBuffer = await blob.arrayBuffer();
-            const audioBuffer  = await state.audioCtx.decodeAudioData(arrayBuffer);
-            // Mix to mono
-            const channelData  = audioBuffer.getChannelData(0);
-            // Resample to 16 kHz (YAMNet requirement)
-            const resampled    = resampleLinear(channelData, audioBuffer.sampleRate, 16000);
-            if (resampled.length < 15600) return;  // need ≥ 0.975 s
+          resumeAudio();
+          const arrayBuffer = await blob.arrayBuffer();
+          const audioBuffer = await state.audioCtx.decodeAudioData(arrayBuffer);
+          // Mix to mono
+          const channelData = audioBuffer.getChannelData(0);
+          // Resample to 16 kHz (YAMNet requirement)
+          const resampled = resampleLinear(
+            channelData,
+            audioBuffer.sampleRate,
+            16000,
+          );
+          if (resampled.length < 15600) return; // need ≥ 0.975 s
 
-            if (state.yamnetModel === 'energy-fallback') {
-                runEnergyFallback(resampled);
-                return;
-            }
+          if (state.yamnetModel === "energy-fallback") {
+            runEnergyFallback(resampled);
+            return;
+          }
 
-            const waveform = tf.tensor1d(resampled);
-            try {
-                const output = await state.yamnetModel.executeAsync(waveform);
-                // YAMNet returns [scores[frames,521], embeddings, spectrogram]
-                const scoresT   = Array.isArray(output) ? output[0] : output;
-                const meanT     = tf.mean(scoresT, 0);
-                const scoresArr = await meanT.data();
-                meanT.dispose();
-                if (Array.isArray(output)) output.forEach(t => t?.dispose?.());
-                else output?.dispose?.();
-                handleYAMNetScores(scoresArr);
-            } catch (inferErr) {
-                console.warn('YAMNet inference error:', inferErr.message);
-            }
-            waveform.dispose();
+          const waveform = tf.tensor1d(resampled);
+          try {
+            const output = await state.yamnetModel.executeAsync(waveform);
+            // YAMNet returns [scores[frames,521], embeddings, spectrogram]
+            const scoresT = Array.isArray(output) ? output[0] : output;
+            const meanT = tf.mean(scoresT, 0);
+            const scoresArr = await meanT.data();
+            meanT.dispose();
+            if (Array.isArray(output)) output.forEach((t) => t?.dispose?.());
+            else output?.dispose?.();
+            handleYAMNetScores(scoresArr);
+          } catch (inferErr) {
+            console.warn("YAMNet inference error:", inferErr.message);
+          }
+          waveform.dispose();
         } catch (e) {
-            console.warn('classifyAudioBlob error:', e.message);
+          console.warn("classifyAudioBlob error:", e.message);
         }
-    }
+      }
 
-    // Linear interpolation resampler — fast enough for 1 s chunks
-    function resampleLinear(input, srcRate, dstRate) {
+      // Linear interpolation resampler — fast enough for 1 s chunks
+      function resampleLinear(input, srcRate, dstRate) {
         if (srcRate === dstRate) return input;
-        const ratio  = srcRate / dstRate;
+        const ratio = srcRate / dstRate;
         const outLen = Math.round(input.length / ratio);
-        const out    = new Float32Array(outLen);
+        const out = new Float32Array(outLen);
         for (let i = 0; i < outLen; i++) {
-            const pos  = i * ratio;
-            const idx  = Math.floor(pos);
-            const frac = pos - idx;
-            out[i] = idx + 1 < input.length
-                ? input[idx] * (1 - frac) + input[idx + 1] * frac
-                : input[Math.min(idx, input.length - 1)];
+          const pos = i * ratio;
+          const idx = Math.floor(pos);
+          const frac = pos - idx;
+          out[i] =
+            idx + 1 < input.length
+              ? input[idx] * (1 - frac) + input[idx + 1] * frac
+              : input[Math.min(idx, input.length - 1)];
         }
         return out;
-    }
+      }
 
-    // Energy-based fallback: detect loud transients without ML.
-    // Uses RMS amplitude + zero-crossing rate heuristics.
-    function runEnergyFallback(samples) {
-        let rmsSum = 0, zcr = 0;
+      // Energy-based fallback: detect loud transients without ML.
+      // Uses RMS amplitude + zero-crossing rate heuristics.
+      function runEnergyFallback(samples) {
+        let rmsSum = 0,
+          zcr = 0;
         for (let i = 0; i < samples.length; i++) {
-            rmsSum += samples[i] * samples[i];
-            if (i > 0 && (samples[i] >= 0) !== (samples[i - 1] >= 0)) zcr++;
+          rmsSum += samples[i] * samples[i];
+          if (i > 0 && samples[i] >= 0 !== samples[i - 1] >= 0) zcr++;
         }
-        const rms     = Math.sqrt(rmsSum / samples.length);
+        const rms = Math.sqrt(rmsSum / samples.length);
         const zcrNorm = zcr / samples.length;
 
-        if      (rms > 0.25 && zcrNorm > 0.15) handleSoundLabel('⚠️ Loud alarm or siren', 'danger');
-        else if (rms > 0.25)                    handleSoundLabel('🔊 Loud sound nearby',    'warning');
-        else if (rms > 0.08 && zcrNorm < 0.08) handleSoundLabel('🗣️ Someone speaking',     'info');
+        if (rms > 0.25 && zcrNorm > 0.15)
+          handleSoundLabel("⚠️ Loud alarm or siren", "danger");
+        else if (rms > 0.25)
+          handleSoundLabel("🔊 Loud sound nearby", "warning");
+        else if (rms > 0.08 && zcrNorm < 0.08)
+          handleSoundLabel("🗣️ Someone speaking", "info");
         // else: silence — don't report
-    }
+      }
 
-    function handleYAMNetScores(scoresArr) {
-        let bestLabel   = null;
-        let bestScore   = CONFIG.YAMNET_SCORE_THRESHOLD;
-        let bestUrgency = 'info';
+      function handleYAMNetScores(scoresArr) {
+        let bestLabel = null;
+        let bestScore = CONFIG.YAMNET_SCORE_THRESHOLD;
+        let bestUrgency = "info";
 
         for (let i = 0; i < scoresArr.length; i++) {
-            if (scoresArr[i] < bestScore) continue;
-            const className = (_yamnetClasses?.[i]) || '';
-            for (const [fragment, info] of Object.entries(CONFIG.SOUND_CATEGORIES)) {
-                if (className.toLowerCase().includes(fragment.toLowerCase())) {
-                    bestLabel   = info.label;
-                    bestUrgency = info.urgency;
-                    bestScore   = scoresArr[i];
-                    break;
-                }
+          if (scoresArr[i] < bestScore) continue;
+          const className = _yamnetClasses?.[i] || "";
+          for (const [fragment, info] of Object.entries(
+            CONFIG.SOUND_CATEGORIES,
+          )) {
+            if (className.toLowerCase().includes(fragment.toLowerCase())) {
+              bestLabel = info.label;
+              bestUrgency = info.urgency;
+              bestScore = scoresArr[i];
+              break;
             }
+          }
         }
 
         if (bestLabel) handleSoundLabel(bestLabel, bestUrgency);
-    }
+      }
 
-    function handleSoundLabel(label, urgency) {
-        const now      = Date.now();
-        const canSpeak = now - (state.lastSoundSpeak[label] || 0) > CONFIG.SOUND_SPEAK_COOLDOWN;
+      function handleSoundLabel(label, urgency) {
+        const now = Date.now();
+        const canSpeak =
+          now - (state.lastSoundSpeak[label] || 0) >
+          CONFIG.SOUND_SPEAK_COOLDOWN;
 
         showSoundBanner(label);
 
-        if (canSpeak && urgency !== 'info') {
-            state.lastSoundSpeak[label] = now;
-            // Strip emoji for TTS (regex matches all emoji ranges)
-            const spoken = label.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}]/gu, '').trim();
-            speakAlert('sound_' + label, spoken || label, urgency === 'danger' ? 3 : 2);
-            vibrateAlert(urgency);
+        if (canSpeak && urgency !== "info") {
+          state.lastSoundSpeak[label] = now;
+          // Strip emoji for TTS (regex matches all emoji ranges)
+          const spoken = label
+            .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}]/gu, "")
+            .trim();
+          speakAlert(
+            "sound_" + label,
+            spoken || label,
+            urgency === "danger" ? 3 : 2,
+          );
+          vibrateAlert(urgency);
         } else if (canSpeak) {
-            state.lastSoundSpeak[label] = now;
+          state.lastSoundSpeak[label] = now;
         }
-    }
+      }
 
-    let _soundBannerTimer = null;
-    function showSoundBanner(label) {
-        const banner = document.getElementById('soundBanner');
+      let _soundBannerTimer = null;
+      function showSoundBanner(label) {
+        const banner = document.getElementById("soundBanner");
         if (!banner) return;
         banner.textContent = label;
-        banner.classList.add('visible');
+        banner.classList.add("visible");
         clearTimeout(_soundBannerTimer);
         _soundBannerTimer = setTimeout(() => {
-            banner.classList.remove('visible');
+          banner.classList.remove("visible");
         }, CONFIG.SOUND_BANNER_DURATION);
-    }
+      }
 
-    async function toggleSoundDetection() {
+      async function toggleSoundDetection() {
         state.yamnetEnabled = !state.yamnetEnabled;
-        const btn = document.getElementById('btnSnd');
-        btn.classList.toggle('on', state.yamnetEnabled);
-        btn.setAttribute('aria-pressed', state.yamnetEnabled ? 'true' : 'false');
+        const btn = document.getElementById("btnSnd");
+        btn.classList.toggle("on", state.yamnetEnabled);
+        btn.setAttribute(
+          "aria-pressed",
+          state.yamnetEnabled ? "true" : "false",
+        );
 
         if (state.yamnetEnabled) {
-            // Request mic access
-            try {
-                state.yamnetMicStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-            } catch (e) {
-                console.error('Microphone access denied for YAMNet:', e);
-                speak('Microphone access denied. Cannot detect sounds.', true);
-                state.yamnetEnabled = false;
-                btn.classList.remove('on');
-                btn.setAttribute('aria-pressed', 'false');
-                return;
-            }
+          // Request mic access
+          try {
+            state.yamnetMicStream = await navigator.mediaDevices.getUserMedia({
+              audio: true,
+              video: false,
+            });
+          } catch (e) {
+            console.error("Microphone access denied for YAMNet:", e);
+            speak("Microphone access denied. Cannot detect sounds.", true);
+            state.yamnetEnabled = false;
+            btn.classList.remove("on");
+            btn.setAttribute("aria-pressed", "false");
+            return;
+          }
 
-            // Load model (lazy — only once)
-            const ok = await loadYAMNet();
-            if (!ok) {
-                speak('Sound model failed to load. Please try again.', true);
-                state.yamnetEnabled = false;
-                btn.classList.remove('on');
-                btn.setAttribute('aria-pressed', 'false');
-                if (state.yamnetMicStream) { state.yamnetMicStream.getTracks().forEach(t => t.stop()); state.yamnetMicStream = null; }
-                return;
-            }
-
-            // Start interval
-            state.yamnetInterval = setInterval(() => {
-                if (state.isRunning && state.yamnetEnabled) runYAMNet();
-            }, CONFIG.YAMNET_INTERVAL);
-
-            speak('Sound detection on.', true);
-        } else {
-            clearInterval(state.yamnetInterval);
-            state.yamnetInterval = null;
+          // Load model (lazy — only once)
+          const ok = await loadYAMNet();
+          if (!ok) {
+            speak("Sound model failed to load. Please try again.", true);
+            state.yamnetEnabled = false;
+            btn.classList.remove("on");
+            btn.setAttribute("aria-pressed", "false");
             if (state.yamnetMicStream) {
-                state.yamnetMicStream.getTracks().forEach(t => t.stop());
-                state.yamnetMicStream = null;
+              state.yamnetMicStream.getTracks().forEach((t) => t.stop());
+              state.yamnetMicStream = null;
             }
-            // Hide banner
-            const banner = document.getElementById('soundBanner');
-            if (banner) banner.classList.remove('visible');
-            speak('Sound detection off.', true);
+            return;
+          }
+
+          // Start interval
+          state.yamnetInterval = setInterval(() => {
+            if (state.isRunning && state.yamnetEnabled) runYAMNet();
+          }, CONFIG.YAMNET_INTERVAL);
+
+          speak("Sound detection on.", true);
+        } else {
+          clearInterval(state.yamnetInterval);
+          state.yamnetInterval = null;
+          if (state.yamnetMicStream) {
+            state.yamnetMicStream.getTracks().forEach((t) => t.stop());
+            state.yamnetMicStream = null;
+          }
+          // Hide banner
+          const banner = document.getElementById("soundBanner");
+          if (banner) banner.classList.remove("visible");
+          speak("Sound detection off.", true);
         }
-    }
-    
-    // ========== AI ANALYSIS ==========
-    async function analyzeWithAI(mode = 'background') {
+      }
+
+      // ========== AI ANALYSIS ==========
+      async function analyzeWithAI(mode = "background") {
         try {
-            const canvas = document.createElement('canvas');
-            const isDetailed = mode === 'detailed';
-            canvas.width = isDetailed ? Math.min(state.video.videoWidth || 960, 1280) : Math.min(state.video.videoWidth || 960, 960);
-            canvas.height = isDetailed ? Math.min(state.video.videoHeight || 720, 960) : Math.min(state.video.videoHeight || 720, 720);
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(state.video, 0, 0, canvas.width, canvas.height);
-            const imageData = canvas.toDataURL('image/jpeg', isDetailed ? 0.9 : 0.75).split(',')[1];
+          const canvas = document.createElement("canvas");
+          const isDetailed = mode === "detailed";
+          canvas.width = isDetailed
+            ? Math.min(state.video.videoWidth || 960, 1280)
+            : Math.min(state.video.videoWidth || 960, 960);
+          canvas.height = isDetailed
+            ? Math.min(state.video.videoHeight || 720, 960)
+            : Math.min(state.video.videoHeight || 720, 720);
+          const ctx = canvas.getContext("2d");
+          ctx.fillStyle = "#000";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(state.video, 0, 0, canvas.width, canvas.height);
+          const imageData = canvas
+            .toDataURL("image/jpeg", isDetailed ? 0.9 : 0.75)
+            .split(",")[1];
 
-            const context = state.localDetections
-                .filter(d => d.confidence >= CONFIG.HIGH_CONFIDENCE)
-                .slice(0, 5)
-                .map(d => `${d.name} ${(d.distance * 3.28084).toFixed(0)}ft ${d.position}`)
-                .join(', ');
+          const context = state.localDetections
+            .filter((d) => d.confidence >= CONFIG.HIGH_CONFIDENCE)
+            .slice(0, 5)
+            .map(
+              (d) =>
+                `${d.name} ${(d.distance * 3.28084).toFixed(0)}ft ${d.position}`,
+            )
+            .join(", ");
 
-            const result = await Promise.any([
-                fetchAI(imageData, 'openai', mode, context),
-                fetchAI(imageData, 'anthropic', mode, context)
-            ]).catch(() => null);
-            return result || null;
+          const result = await Promise.any([
+            fetchAI(imageData, "openai", mode, context),
+            fetchAI(imageData, "anthropic", mode, context),
+          ]).catch(() => null);
+          return result || null;
         } catch (e) {
-            console.error('AI error:', e);
-            return null;
+          console.error("AI error:", e);
+          return null;
         }
-    }
+      }
 
-    let _aiFailCount = 0;
-    let _aiBackoffUntil = 0;
+      let _aiFailCount = 0;
+      let _aiBackoffUntil = 0;
 
-    async function fetchAI(imageData, provider, mode = 'background', context = '') {
+      async function fetchAI(
+        imageData,
+        provider,
+        mode = "background",
+        context = "",
+      ) {
         if (Date.now() < _aiBackoffUntil) return null;
         try {
-            const response = await fetch(CONFIG.WORKER_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ image: imageData, provider, mode, context })
-            });
-            if (!response.ok) {
-                _aiFailCount++;
-                _aiBackoffUntil = Date.now() + Math.min(10000 * Math.pow(2, _aiFailCount - 1), 60000);
-                return null;
-            }
-            _aiFailCount = 0;
-            const data = await response.json();
-            return data.result || null;
-        } catch (e) {
+          const response = await fetch(CONFIG.WORKER_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image: imageData, provider, mode, context }),
+          });
+          if (!response.ok) {
             _aiFailCount++;
-            _aiBackoffUntil = Date.now() + Math.min(10000 * Math.pow(2, _aiFailCount - 1), 60000);
+            _aiBackoffUntil =
+              Date.now() +
+              Math.min(10000 * Math.pow(2, _aiFailCount - 1), 60000);
             return null;
+          }
+          _aiFailCount = 0;
+          const data = await response.json();
+          return data.result || null;
+        } catch (e) {
+          _aiFailCount++;
+          _aiBackoffUntil =
+            Date.now() + Math.min(10000 * Math.pow(2, _aiFailCount - 1), 60000);
+          return null;
         }
-    }
-    
-    // ========== LOCAL DETECTION ==========
-    const KNOWN_HEIGHTS = {
-        person: 1.7, bicycle: 1.0, car: 1.5, motorcycle: 1.1, bus: 3.0, truck: 3.0,
-        dog: 0.5, cat: 0.3, horse: 1.6, chair: 0.9, couch: 0.85, bed: 0.6,
-        'dining table': 0.75, toilet: 0.4, refrigerator: 1.7, 'fire hydrant': 0.6,
-        'stop sign': 2.1, 'parking meter': 1.2, bench: 0.85, backpack: 0.5,
-        suitcase: 0.7, 'potted plant': 0.5, 'sports ball': 0.22, skateboard: 0.1
-    };
+      }
 
-    function getCameraFOV() { return 55 * (Math.PI / 180); }
+      // ========== LOCAL DETECTION ==========
+      const KNOWN_HEIGHTS = {
+        person: 1.7,
+        bicycle: 1.0,
+        car: 1.5,
+        motorcycle: 1.1,
+        bus: 3.0,
+        truck: 3.0,
+        dog: 0.5,
+        cat: 0.3,
+        horse: 1.6,
+        chair: 0.9,
+        couch: 0.85,
+        bed: 0.6,
+        "dining table": 0.75,
+        toilet: 0.4,
+        refrigerator: 1.7,
+        "fire hydrant": 0.6,
+        "stop sign": 2.1,
+        "parking meter": 1.2,
+        bench: 0.85,
+        backpack: 0.5,
+        suitcase: 0.7,
+        "potted plant": 0.5,
+        "sports ball": 0.22,
+        skateboard: 0.1,
+      };
 
-    function estimateDistance(className, bboxHeight, imageHeight) {
+      function getCameraFOV() {
+        return 55 * (Math.PI / 180);
+      }
+
+      function estimateDistance(className, bboxHeight, imageHeight) {
         const realH = KNOWN_HEIGHTS[className];
         if (!realH || bboxHeight < 5) return null;
         const fov = getCameraFOV();
         const d = (realH * imageHeight) / (2 * bboxHeight * Math.tan(fov / 2));
         return Math.max(0.3, Math.min(d, 8.0));
-    }
+      }
 
-    function updateDepthCalibration(detections) {
+      function updateDepthCalibration(detections) {
         if (!state.depthHistory.length) return;
         const latest = state.depthHistory[state.depthHistory.length - 1];
         for (const det of detections) {
-            if (det.position !== 'ahead' || det.confidence < 0.7) continue;
-            if (!KNOWN_HEIGHTS[det.name]) continue;
-            if (det.distance > 5.0 || det.distance < 0.5) continue;
-            const depthVal = latest.c;
-            if (depthVal < 50 || depthVal > 240) continue;
-            const cal = { depthVal, realMeters: det.distance, timestamp: Date.now() };
-            if (!state.depthCalibration) {
-                state.depthCalibration = cal;
-            } else {
-                state.depthCalibration.depthVal = state.depthCalibration.depthVal * 0.7 + depthVal * 0.3;
-                state.depthCalibration.realMeters = state.depthCalibration.realMeters * 0.7 + det.distance * 0.3;
-                state.depthCalibration.timestamp = Date.now();
-            }
-            break;
+          if (det.position !== "ahead" || det.confidence < 0.7) continue;
+          if (!KNOWN_HEIGHTS[det.name]) continue;
+          if (det.distance > 5.0 || det.distance < 0.5) continue;
+          const depthVal = latest.c;
+          if (depthVal < 50 || depthVal > 240) continue;
+          const cal = {
+            depthVal,
+            realMeters: det.distance,
+            timestamp: Date.now(),
+          };
+          if (!state.depthCalibration) {
+            state.depthCalibration = cal;
+          } else {
+            state.depthCalibration.depthVal =
+              state.depthCalibration.depthVal * 0.7 + depthVal * 0.3;
+            state.depthCalibration.realMeters =
+              state.depthCalibration.realMeters * 0.7 + det.distance * 0.3;
+            state.depthCalibration.timestamp = Date.now();
+          }
+          break;
         }
-    }
+      }
 
-    function depthToMeters(depthVal) {
+      function depthToMeters(depthVal) {
         if (!state.depthCalibration) return null;
         const cal = state.depthCalibration;
         if (depthVal < 10) return 10;
         const k = cal.depthVal * cal.realMeters;
         return Math.max(0.2, k / depthVal);
-    }
+      }
 
-    async function detectLocal() {
+      async function detectLocal() {
         if (!state.model || !state.video) return [];
         try {
-            const predictions = await state.model.detect(state.video);
-            const vw = state.video.videoWidth || 1;
-            const vh = state.video.videoHeight || 1;
-            return predictions.map(p => {
-                const cx = (p.bbox[0] + p.bbox[2] / 2) / vw;
-                const cy = (p.bbox[1] + p.bbox[3] / 2) / vh;
-                let position = 'ahead';
-                if (cx < 0.35) position = 'left';
-                else if (cx > 0.65) position = 'right';
-                let distance = estimateDistance(p.class, p.bbox[3], vh);
-                if (distance === null) {
-                    const size = Math.max(p.bbox[2], p.bbox[3]) / Math.max(vw, vh);
-                    if (size > 0.6) distance = 0.5;
-                    else if (size > 0.45) distance = 1.0;
-                    else if (size > 0.3) distance = 1.5;
-                    else if (size > 0.2) distance = 2.0;
-                    else if (size > 0.1) distance = 3.0;
-                    else distance = 4.0;
-                }
-                const inPath = cx > 0.25 && cx < 0.75 && cy > 0.3;
-                let danger = 'low';
-                if (CONFIG.CRITICAL.includes(p.class)) danger = 'critical';
-                else if (CONFIG.OBSTACLES.includes(p.class)) danger = 'obstacle';
-                return { name: p.class, position, distance, inPath, danger, confidence: p.score };
-            }).filter(d => d.confidence >= CONFIG.HIGH_CONFIDENCE);
-        } catch (e) { return []; }
-    }
-    
-    function getDisplayName(detection) {
-        return detection.confidence >= CONFIG.HIGH_CONFIDENCE ? detection.name : 'obstacle';
-    }
-
-    function parseAIResult(text) {
-        const lower = text.toLowerCase();
-        if (/path\s*clear|no\s*hazard|all\s*clear|nothing|safe\s*to\s*proceed/.test(lower)) return { level: 'clear' };
-        if (/stair|step\s*down|steps\s*down|drop.?off|ledge|descend|going\s*down/.test(lower))
-            return { level: 'danger', key: 'stairs', label: 'STAIRS', uiDetail: 'Stop — stairs or drop-off', speak: 'Stairs ahead. Stop.' };
-        if (/\b(car|vehicle|truck|bus|cyclist|bicycle|motorbike|motorcycle)\b.*approach|moving|coming/.test(lower) ||
-            /approach.*\b(car|vehicle|truck|bus|cyclist)\b/.test(lower))
-            return { level: 'danger', key: 'vehicle', label: 'VEHICLE', uiDetail: 'Moving vehicle nearby', speak: 'Vehicle approaching! Be careful!' };
-        if (/wall|dead.?end|blocked|barrier|partition|fence/.test(lower))
-            return { level: 'warning', key: 'wall', label: 'WALL/BLOCKED', uiDetail: 'Wall or blocked path ahead', speak: 'Wall ahead. Slow down.' };
-        if (/step\s*up|curb|kerb|raised|bump|threshold/.test(lower))
-            return { level: 'warning', key: 'step_up', label: 'STEP UP', uiDetail: 'Step or curb ahead', speak: 'Step up ahead.' };
-        if (/wet|slippery|icy|ice|puddle|spill|damp/.test(lower))
-            return { level: 'warning', key: 'wet', label: 'WET FLOOR', uiDetail: 'Slippery surface', speak: 'Caution — wet or slippery floor.' };
-        if (/narrow|tight\s*gap|squeeze|low\s*ceiling|low\s*beam|head.?height|duck/.test(lower))
-            return { level: 'warning', key: 'narrow', label: 'NARROW', uiDetail: 'Narrow or low clearance', speak: 'Narrow passage or low obstacle ahead.' };
-        if (/door|doorway|entrance|exit|gateway|gate/.test(lower))
-            return { level: 'info', key: 'door', label: 'DOOR', uiDetail: 'Door or entrance ahead', speak: 'Door ahead.' };
-        if (/hazard|caution|careful|danger|obstacle|object|block/.test(lower)) {
-            const shortText = text.length < 80 ? text : 'Hazard detected ahead.';
-            return { level: 'warning', key: 'hazard', label: 'HAZARD', uiDetail: shortText, speak: shortText };
+          const predictions = await state.model.detect(state.video);
+          const vw = state.video.videoWidth || 1;
+          const vh = state.video.videoHeight || 1;
+          return predictions
+            .map((p) => {
+              const cx = (p.bbox[0] + p.bbox[2] / 2) / vw;
+              const cy = (p.bbox[1] + p.bbox[3] / 2) / vh;
+              let position = "ahead";
+              if (cx < 0.35) position = "left";
+              else if (cx > 0.65) position = "right";
+              let distance = estimateDistance(p.class, p.bbox[3], vh);
+              if (distance === null) {
+                const size = Math.max(p.bbox[2], p.bbox[3]) / Math.max(vw, vh);
+                if (size > 0.6) distance = 0.5;
+                else if (size > 0.45) distance = 1.0;
+                else if (size > 0.3) distance = 1.5;
+                else if (size > 0.2) distance = 2.0;
+                else if (size > 0.1) distance = 3.0;
+                else distance = 4.0;
+              }
+              const inPath = cx > 0.25 && cx < 0.75 && cy > 0.3;
+              let danger = "low";
+              if (CONFIG.CRITICAL.includes(p.class)) danger = "critical";
+              else if (CONFIG.OBSTACLES.includes(p.class)) danger = "obstacle";
+              return {
+                name: p.class,
+                position,
+                distance,
+                inPath,
+                danger,
+                confidence: p.score,
+              };
+            })
+            .filter((d) => d.confidence >= CONFIG.HIGH_CONFIDENCE);
+        } catch (e) {
+          return [];
         }
-        return { level: 'info', key: 'ai_note', label: 'AI', uiDetail: text, speak: text.length < 80 ? text : '' };
-    }
-    
-    // ========== DEPTH ESTIMATION ==========
-    async function initDepthModel() {
-        const badge = document.getElementById('aiBadge');
-        if (badge) badge.textContent = 'Starting depth sensor…';
+      }
+
+      function getDisplayName(detection) {
+        return detection.confidence >= CONFIG.HIGH_CONFIDENCE
+          ? detection.name
+          : "obstacle";
+      }
+
+      function parseAIResult(text) {
+        const lower = text.toLowerCase();
+        if (
+          /path\s*clear|no\s*hazard|all\s*clear|nothing|safe\s*to\s*proceed/.test(
+            lower,
+          )
+        )
+          return { level: "clear" };
+        if (
+          /stair|step\s*down|steps\s*down|drop.?off|ledge|descend|going\s*down/.test(
+            lower,
+          )
+        )
+          return {
+            level: "danger",
+            key: "stairs",
+            label: "STAIRS",
+            uiDetail: "Stop — stairs or drop-off",
+            speak: "Stairs ahead. Stop.",
+          };
+        if (
+          /\b(car|vehicle|truck|bus|cyclist|bicycle|motorbike|motorcycle)\b.*approach|moving|coming/.test(
+            lower,
+          ) ||
+          /approach.*\b(car|vehicle|truck|bus|cyclist)\b/.test(lower)
+        )
+          return {
+            level: "danger",
+            key: "vehicle",
+            label: "VEHICLE",
+            uiDetail: "Moving vehicle nearby",
+            speak: "Vehicle approaching! Be careful!",
+          };
+        if (/wall|dead.?end|blocked|barrier|partition|fence/.test(lower))
+          return {
+            level: "warning",
+            key: "wall",
+            label: "WALL/BLOCKED",
+            uiDetail: "Wall or blocked path ahead",
+            speak: "Wall ahead. Slow down.",
+          };
+        if (/step\s*up|curb|kerb|raised|bump|threshold/.test(lower))
+          return {
+            level: "warning",
+            key: "step_up",
+            label: "STEP UP",
+            uiDetail: "Step or curb ahead",
+            speak: "Step up ahead.",
+          };
+        if (/wet|slippery|icy|ice|puddle|spill|damp/.test(lower))
+          return {
+            level: "warning",
+            key: "wet",
+            label: "WET FLOOR",
+            uiDetail: "Slippery surface",
+            speak: "Caution — wet or slippery floor.",
+          };
+        if (
+          /narrow|tight\s*gap|squeeze|low\s*ceiling|low\s*beam|head.?height|duck/.test(
+            lower,
+          )
+        )
+          return {
+            level: "warning",
+            key: "narrow",
+            label: "NARROW",
+            uiDetail: "Narrow or low clearance",
+            speak: "Narrow passage or low obstacle ahead.",
+          };
+        if (/door|doorway|entrance|exit|gateway|gate/.test(lower))
+          return {
+            level: "info",
+            key: "door",
+            label: "DOOR",
+            uiDetail: "Door or entrance ahead",
+            speak: "Door ahead.",
+          };
+        if (/hazard|caution|careful|danger|obstacle|object|block/.test(lower)) {
+          const shortText = text.length < 80 ? text : "Hazard detected ahead.";
+          return {
+            level: "warning",
+            key: "hazard",
+            label: "HAZARD",
+            uiDetail: shortText,
+            speak: shortText,
+          };
+        }
+        return {
+          level: "info",
+          key: "ai_note",
+          label: "AI",
+          uiDetail: text,
+          speak: text.length < 80 ? text : "",
+        };
+      }
+
+      // ========== DEPTH ESTIMATION ==========
+      async function initDepthModel() {
+        const badge = document.getElementById("aiBadge");
+        if (badge) badge.textContent = "Starting depth sensor…";
 
         if (navigator.xr) {
-            try {
-                const supported = await navigator.xr.isSessionSupported('immersive-ar');
-                if (supported) {
-                    const session = await navigator.xr.requestSession('immersive-ar', {
-                        requiredFeatures: ['depth-sensing'],
-                        depthSensing: { usagePreference: ['cpu-optimized'], dataFormatPreference: ['luminance-alpha'] }
-                    });
-                    state.xrSession = session;
-                    state.xrDepthActive = false;
-                    const gl = document.createElement('canvas').getContext('webgl2', { xrCompatible: true })
-                            || document.createElement('canvas').getContext('webgl', { xrCompatible: true });
-                    if (gl) {
-                        await gl.makeXRCompatible?.();
-                        const layer = new XRWebGLLayer(session, gl);
-                        session.updateRenderState({ baseLayer: layer });
-                        const refSpace = await session.requestReferenceSpace('local');
-                        session.requestAnimationFrame(function onXRFrame(t, frame) {
-                            if (!state.isRunning) { session.end(); return; }
-                            session.requestAnimationFrame(onXRFrame);
-                            const depthInfo = frame.getDepthInformation?.(frame.getViewerPose(refSpace)?.views[0]);
-                            if (!depthInfo) return;
-                            state.xrDepthActive = true;
-                            const w = depthInfo.width, h = depthInfo.height;
-                            let cSum = 0, cN = 0, lSum = 0, lN = 0, rSum = 0, rN = 0;
-                            const yStart = Math.floor(h * 0.2), yEnd = Math.floor(h * 0.8);
-                            for (let y = yStart; y < yEnd; y++) {
-                                for (let x = 0; x < w; x++) {
-                                    const d = depthInfo.getDepthInMeters(x / w, y / h);
-                                    if (!isFinite(d) || d <= 0) continue;
-                                    const fx = x / w;
-                                    if (fx > 0.30 && fx < 0.70) { cSum += d; cN++; }
-                                    else if (fx < 0.22) { lSum += d; lN++; }
-                                    else if (fx > 0.78) { rSum += d; rN++; }
-                                }
-                            }
-                            const c = cN > 0 ? cSum / cN : 5;
-                            const l = lN > 0 ? lSum / lN : 5;
-                            const r = rN > 0 ? rSum / rN : 5;
-                            state.depthHistory.push({ c, l, r, lidar: true });
-                            if (state.depthHistory.length > 6) state.depthHistory.shift();
-                            const hazard = computeLiDARHazard(c, l, r);
-                            if (hazard) {
-                                const ttl = hazard.level === 'danger' ? 1200 : 900;
-                                if (!state.depthHazard || hazard.level === 'danger') {
-                                    state.depthHazard = { ...hazard, expiry: Date.now() + ttl };
-                                    speakAlert(hazard.key, hazard.speak, hazard.level === 'danger' ? 3 : 2);
-                                    playAlertSound('ahead', hazard.level);
-                                    vibrateAlert(hazard.level);
-                                }
-                            }
-                        });
-                        await new Promise(r => setTimeout(r, 3000));
+          try {
+            const supported =
+              await navigator.xr.isSessionSupported("immersive-ar");
+            if (supported) {
+              const session = await navigator.xr.requestSession(
+                "immersive-ar",
+                {
+                  requiredFeatures: ["depth-sensing"],
+                  depthSensing: {
+                    usagePreference: ["cpu-optimized"],
+                    dataFormatPreference: ["luminance-alpha"],
+                  },
+                },
+              );
+              state.xrSession = session;
+              state.xrDepthActive = false;
+              const gl =
+                document
+                  .createElement("canvas")
+                  .getContext("webgl2", { xrCompatible: true }) ||
+                document
+                  .createElement("canvas")
+                  .getContext("webgl", { xrCompatible: true });
+              if (gl) {
+                await gl.makeXRCompatible?.();
+                const layer = new XRWebGLLayer(session, gl);
+                session.updateRenderState({ baseLayer: layer });
+                const refSpace = await session.requestReferenceSpace("local");
+                session.requestAnimationFrame(function onXRFrame(t, frame) {
+                  if (!state.isRunning) {
+                    session.end();
+                    return;
+                  }
+                  session.requestAnimationFrame(onXRFrame);
+                  const depthInfo = frame.getDepthInformation?.(
+                    frame.getViewerPose(refSpace)?.views[0],
+                  );
+                  if (!depthInfo) return;
+                  state.xrDepthActive = true;
+                  const w = depthInfo.width,
+                    h = depthInfo.height;
+                  let cSum = 0,
+                    cN = 0,
+                    lSum = 0,
+                    lN = 0,
+                    rSum = 0,
+                    rN = 0;
+                  const yStart = Math.floor(h * 0.2),
+                    yEnd = Math.floor(h * 0.8);
+                  for (let y = yStart; y < yEnd; y++) {
+                    for (let x = 0; x < w; x++) {
+                      const d = depthInfo.getDepthInMeters(x / w, y / h);
+                      if (!isFinite(d) || d <= 0) continue;
+                      const fx = x / w;
+                      if (fx > 0.3 && fx < 0.7) {
+                        cSum += d;
+                        cN++;
+                      } else if (fx < 0.22) {
+                        lSum += d;
+                        lN++;
+                      } else if (fx > 0.78) {
+                        rSum += d;
+                        rN++;
+                      }
                     }
-                    if (state.xrDepthActive) {
-                        if (badge) badge.textContent = 'AI + LiDAR Active';
-                        return;
-                    } else {
-                        session.end().catch(() => {});
-                        state.xrSession = null;
+                  }
+                  const c = cN > 0 ? cSum / cN : 5;
+                  const l = lN > 0 ? lSum / lN : 5;
+                  const r = rN > 0 ? rSum / rN : 5;
+                  state.depthHistory.push({ c, l, r, lidar: true });
+                  if (state.depthHistory.length > 6) state.depthHistory.shift();
+                  const hazard = computeLiDARHazard(c, l, r);
+                  if (hazard) {
+                    const ttl = hazard.level === "danger" ? 1200 : 900;
+                    if (!state.depthHazard || hazard.level === "danger") {
+                      state.depthHazard = {
+                        ...hazard,
+                        expiry: Date.now() + ttl,
+                      };
+                      speakAlert(
+                        hazard.key,
+                        hazard.speak,
+                        hazard.level === "danger" ? 3 : 2,
+                      );
+                      playAlertSound("ahead", hazard.level);
+                      vibrateAlert(hazard.level);
                     }
-                }
-            } catch (e) { console.warn('WebXR depth not available:', e.message || e); }
+                  }
+                });
+                await new Promise((r) => setTimeout(r, 3000));
+              }
+              if (state.xrDepthActive) {
+                if (badge) badge.textContent = "AI + LiDAR Active";
+                return;
+              } else {
+                session.end().catch(() => {});
+                state.xrSession = null;
+              }
+            }
+          } catch (e) {
+            console.warn("WebXR depth not available:", e.message || e);
+          }
         }
 
-        if (badge) badge.textContent = 'Loading depth model…';
-        const loaded = await new Promise(resolve => {
-            if (window.__txPipeline) { resolve(true); return; }
-            const onOk   = () => { cleanup(); resolve(true); };
-            const onFail = () => { cleanup(); resolve(false); };
-            const timer  = setTimeout(() => { cleanup(); resolve(false); }, 30000);
-            const cleanup = () => {
-                window.removeEventListener('tx-ready', onOk);
-                window.removeEventListener('tx-failed', onFail);
-                clearTimeout(timer);
-            };
-            window.addEventListener('tx-ready', onOk, { once: true });
-            window.addEventListener('tx-failed', onFail, { once: true });
+        if (badge) badge.textContent = "Loading depth model…";
+        const loaded = await new Promise((resolve) => {
+          if (window.__txPipeline) {
+            resolve(true);
+            return;
+          }
+          const onOk = () => {
+            cleanup();
+            resolve(true);
+          };
+          const onFail = () => {
+            cleanup();
+            resolve(false);
+          };
+          const timer = setTimeout(() => {
+            cleanup();
+            resolve(false);
+          }, 30000);
+          const cleanup = () => {
+            window.removeEventListener("tx-ready", onOk);
+            window.removeEventListener("tx-failed", onFail);
+            clearTimeout(timer);
+          };
+          window.addEventListener("tx-ready", onOk, { once: true });
+          window.addEventListener("tx-failed", onFail, { once: true });
         });
 
         if (!loaded || !window.__txPipeline) {
-            if (badge) badge.textContent = 'AI Active';
-            return;
+          if (badge) badge.textContent = "AI Active";
+          return;
         }
 
         try {
-            const env = window.__txEnv;
-            if (env) env.allowLocalModels = false;
-            if (badge) badge.textContent = 'Downloading depth model…';
-            state.depthPipeline = await window.__txPipeline(
-                'depth-estimation', 'Xenova/depth-anything-small-hf', { quantized: true }
-            );
-            if (badge) badge.textContent = 'AI + Depth Active';
+          const env = window.__txEnv;
+          if (env) env.allowLocalModels = false;
+          if (badge) badge.textContent = "Downloading depth model…";
+          state.depthPipeline = await window.__txPipeline(
+            "depth-estimation",
+            "Xenova/depth-anything-small-hf",
+            { quantized: true },
+          );
+          if (badge) badge.textContent = "AI + Depth Active";
         } catch (e) {
-            console.error('Depth model failed:', e.message || e);
-            if (badge) badge.textContent = 'AI Active';
+          console.error("Depth model failed:", e.message || e);
+          if (badge) badge.textContent = "AI Active";
         }
-    }
+      }
 
-    function computeLiDARHazard(c, l, r) {
+      function computeLiDARHazard(c, l, r) {
         const hist = state.depthHistory;
         if (hist.length < 2) return null;
         const ft = (c * 3.28084).toFixed(1);
-        if (c <= 0.4) return { level: 'danger', key: 'lidar_critical', label: 'STOP', speak: 'Stop now', uiDetail: `${ft} ft ahead`, fromDepth: true };
-        if (c <= 1.0) return { level: 'danger', key: 'lidar_close', label: 'OBSTACLE CLOSE', speak: 'Stop', uiDetail: `${ft} ft ahead`, fromDepth: true };
-        if (c <= 2.0) return { level: 'warning', key: 'lidar_near', label: 'OBSTACLE AHEAD', speak: 'Slow', uiDetail: `${ft} ft ahead`, fromDepth: true };
+        if (c <= 0.4)
+          return {
+            level: "danger",
+            key: "lidar_critical",
+            label: "STOP",
+            speak: "Stop now",
+            uiDetail: `${ft} ft ahead`,
+            fromDepth: true,
+          };
+        if (c <= 1.0)
+          return {
+            level: "danger",
+            key: "lidar_close",
+            label: "OBSTACLE CLOSE",
+            speak: "Stop",
+            uiDetail: `${ft} ft ahead`,
+            fromDepth: true,
+          };
+        if (c <= 2.0)
+          return {
+            level: "warning",
+            key: "lidar_near",
+            label: "OBSTACLE AHEAD",
+            speak: "Slow",
+            uiDetail: `${ft} ft ahead`,
+            fromDepth: true,
+          };
         const prev = hist[hist.length - 2];
         if (prev.lidar && c < prev.c - 0.08 && c < 3.0)
-            return { level: 'warning', key: 'lidar_approach', label: 'APPROACHING', speak: 'Ahead', uiDetail: `Approaching ${ft} ft`, fromDepth: true };
+          return {
+            level: "warning",
+            key: "lidar_approach",
+            label: "APPROACHING",
+            speak: "Ahead",
+            uiDetail: `Approaching ${ft} ft`,
+            fromDepth: true,
+          };
         return null;
-    }
+      }
 
-    async function runDepthDetection() {
+      async function runDepthDetection() {
         if (state.xrDepthActive) return null;
-        if (!state.depthPipeline || !state.video || state.video.videoWidth === 0) return null;
+        if (
+          !state.depthPipeline ||
+          !state.video ||
+          state.video.videoWidth === 0
+        )
+          return null;
         try {
-            const canvas = document.createElement('canvas');
-            canvas.width = 256; canvas.height = 256;
-            canvas.getContext('2d').drawImage(state.video, 0, 0, 256, 256);
-            const { depth } = await state.depthPipeline(canvas.toDataURL('image/jpeg', 0.6));
-            const data = depth.data, w = depth.width, h = depth.height, ch = depth.channels || 1;
-            let cSum = 0, cN = 0, lSum = 0, lN = 0, rSum = 0, rN = 0;
-            for (let y = Math.floor(h * 0.15); y < Math.floor(h * 0.85); y++) {
-                for (let x = 0; x < w; x++) {
-                    const v = data[(y * w + x) * ch];
-                    const fx = x / w;
-                    if (fx > 0.30 && fx < 0.70) { cSum += v; cN++; }
-                    else if (fx < 0.22) { lSum += v; lN++; }
-                    else if (fx > 0.78) { rSum += v; rN++; }
-                }
+          const canvas = document.createElement("canvas");
+          canvas.width = 256;
+          canvas.height = 256;
+          canvas.getContext("2d").drawImage(state.video, 0, 0, 256, 256);
+          const { depth } = await state.depthPipeline(
+            canvas.toDataURL("image/jpeg", 0.6),
+          );
+          const data = depth.data,
+            w = depth.width,
+            h = depth.height,
+            ch = depth.channels || 1;
+          let cSum = 0,
+            cN = 0,
+            lSum = 0,
+            lN = 0,
+            rSum = 0,
+            rN = 0;
+          for (let y = Math.floor(h * 0.15); y < Math.floor(h * 0.85); y++) {
+            for (let x = 0; x < w; x++) {
+              const v = data[(y * w + x) * ch];
+              const fx = x / w;
+              if (fx > 0.3 && fx < 0.7) {
+                cSum += v;
+                cN++;
+              } else if (fx < 0.22) {
+                lSum += v;
+                lN++;
+              } else if (fx > 0.78) {
+                rSum += v;
+                rN++;
+              }
             }
-            const c = cN > 0 ? cSum / cN : 128;
-            const l = lN > 0 ? lSum / lN : 128;
-            const r = rN > 0 ? rSum / rN : 128;
-            state.depthHistory.push({ c, l, r });
-            if (state.depthHistory.length > 6) state.depthHistory.shift();
-            return computeDepthHazard(c, l, r);
-        } catch (e) { console.warn('Depth scan error:', e); return null; }
-    }
+          }
+          const c = cN > 0 ? cSum / cN : 128;
+          const l = lN > 0 ? lSum / lN : 128;
+          const r = rN > 0 ? rSum / rN : 128;
+          state.depthHistory.push({ c, l, r });
+          if (state.depthHistory.length > 6) state.depthHistory.shift();
+          return computeDepthHazard(c, l, r);
+        } catch (e) {
+          console.warn("Depth scan error:", e);
+          return null;
+        }
+      }
 
-    function computeDepthHazard(c, l, r) {
+      function computeDepthHazard(c, l, r) {
         const hist = state.depthHistory;
         if (hist.length < 2) return null;
         if (hist.length >= 4) {
-            const h0 = hist[hist.length - 4];
-            const h1 = hist[hist.length - 3];
-            const h2 = hist[hist.length - 2];
-            const avgRate = (c - h0.c) / 3;
-            const rising = (h1.c > h0.c + 1) && (h2.c > h1.c + 1) && (c > h2.c + 1);
-            if (rising && avgRate > 15) return { level: 'danger', key: 'depth_approaching_fast', label: 'APPROACHING FAST', speak: 'Stop', uiDetail: 'Something approaching quickly', fromDepth: true };
-            if (rising && avgRate > 8)  return { level: 'warning', key: 'depth_approaching', label: 'APPROACHING', speak: 'Slow', uiDetail: 'Something getting closer', fromDepth: true };
+          const h0 = hist[hist.length - 4];
+          const h1 = hist[hist.length - 3];
+          const h2 = hist[hist.length - 2];
+          const avgRate = (c - h0.c) / 3;
+          const rising = h1.c > h0.c + 1 && h2.c > h1.c + 1 && c > h2.c + 1;
+          if (rising && avgRate > 15)
+            return {
+              level: "danger",
+              key: "depth_approaching_fast",
+              label: "APPROACHING FAST",
+              speak: "Stop",
+              uiDetail: "Something approaching quickly",
+              fromDepth: true,
+            };
+          if (rising && avgRate > 8)
+            return {
+              level: "warning",
+              key: "depth_approaching",
+              label: "APPROACHING",
+              speak: "Slow",
+              uiDetail: "Something getting closer",
+              fromDepth: true,
+            };
         }
         const cMeters = depthToMeters(c);
         if (cMeters !== null) {
-            const cFt = (cMeters * 3.28084).toFixed(1);
-            if (cMeters < 1.0) return { level: 'danger', key: 'depth_close', label: 'VERY CLOSE', speak: 'Stop', uiDetail: `${cFt} ft ahead`, fromDepth: true };
-            if (cMeters < 1.8) return { level: 'danger', key: 'depth_danger', label: 'CLOSE', speak: 'Stop', uiDetail: `${cFt} ft ahead`, fromDepth: true };
-            if (cMeters < 3.0) return { level: 'warning', key: 'depth_warn', label: 'OBSTACLE AHEAD', speak: 'Slow', uiDetail: `${cFt} ft ahead`, fromDepth: true };
-            return null;
+          const cFt = (cMeters * 3.28084).toFixed(1);
+          if (cMeters < 1.0)
+            return {
+              level: "danger",
+              key: "depth_close",
+              label: "VERY CLOSE",
+              speak: "Stop",
+              uiDetail: `${cFt} ft ahead`,
+              fromDepth: true,
+            };
+          if (cMeters < 1.8)
+            return {
+              level: "danger",
+              key: "depth_danger",
+              label: "CLOSE",
+              speak: "Stop",
+              uiDetail: `${cFt} ft ahead`,
+              fromDepth: true,
+            };
+          if (cMeters < 3.0)
+            return {
+              level: "warning",
+              key: "depth_warn",
+              label: "OBSTACLE AHEAD",
+              speak: "Slow",
+              uiDetail: `${cFt} ft ahead`,
+              fromDepth: true,
+            };
+          return null;
         }
         const scene = (c + l + r) / 3;
         if (scene < 1) return null;
-        if (c > 110) return { level: 'danger', key: 'depth_close', label: 'WALL/OBSTACLE', speak: 'Stop', uiDetail: `Close ahead (c:${c.toFixed(0)})`, fromDepth: true };
-        if (c > 85)  return { level: 'warning', key: 'depth_near', label: 'OBSTACLE', speak: 'Slow', uiDetail: `Obstacle ahead`, fromDepth: true };
+        if (c > 110)
+          return {
+            level: "danger",
+            key: "depth_close",
+            label: "WALL/OBSTACLE",
+            speak: "Stop",
+            uiDetail: `Close ahead (c:${c.toFixed(0)})`,
+            fromDepth: true,
+          };
+        if (c > 85)
+          return {
+            level: "warning",
+            key: "depth_near",
+            label: "OBSTACLE",
+            speak: "Slow",
+            uiDetail: `Obstacle ahead`,
+            fromDepth: true,
+          };
         const cRatio = c / scene;
-        const sideAvg = ((l + r) / 2) / scene;
+        const sideAvg = (l + r) / 2 / scene;
         const deviation = cRatio - sideAvg;
-        if (deviation > 0.35) return { level: 'danger', key: 'depth_center', label: 'OBSTACLE', speak: 'Stop', uiDetail: 'Obstacle directly ahead', fromDepth: true };
-        if (deviation > 0.20) return { level: 'warning', key: 'depth_center_warn', label: 'OBSTACLE AHEAD', speak: 'Slow', uiDetail: 'Obstacle in path', fromDepth: true };
+        if (deviation > 0.35)
+          return {
+            level: "danger",
+            key: "depth_center",
+            label: "OBSTACLE",
+            speak: "Stop",
+            uiDetail: "Obstacle directly ahead",
+            fromDepth: true,
+          };
+        if (deviation > 0.2)
+          return {
+            level: "warning",
+            key: "depth_center_warn",
+            label: "OBSTACLE AHEAD",
+            speak: "Slow",
+            uiDetail: "Obstacle in path",
+            fromDepth: true,
+          };
         return null;
-    }
+      }
 
-    // ========== FAST WALL DETECTOR ==========
-    function fastWallCheck() {
+      // ========== FAST WALL DETECTOR ==========
+      function fastWallCheck() {
         if (!state.video || state.video.videoWidth === 0) return null;
         if (!state._wallCanvas) {
-            state._wallCanvas = document.createElement('canvas');
-            state._wallCanvas.width = 64;
-            state._wallCanvas.height = 48;
-            state._wallCtx = state._wallCanvas.getContext('2d', { willReadFrequently: true });
+          state._wallCanvas = document.createElement("canvas");
+          state._wallCanvas.width = 64;
+          state._wallCanvas.height = 48;
+          state._wallCtx = state._wallCanvas.getContext("2d", {
+            willReadFrequently: true,
+          });
         }
         try {
-            const ctx = state._wallCtx;
-            ctx.drawImage(state.video, 0, 0, 64, 48);
-            const img = ctx.getImageData(0, 0, 64, 48);
-            const d = img.data;
-            let sum = 0, sumSq = 0, n = 0, edgeCount = 0;
-            const xStart = 16, xEnd = 48, yStart = 10, yEnd = 38;
-            for (let y = yStart; y < yEnd; y++) {
-                for (let x = xStart; x < xEnd; x++) {
-                    const i = (y * 64 + x) * 4;
-                    const brightness = d[i] * 0.299 + d[i+1] * 0.587 + d[i+2] * 0.114;
-                    sum += brightness; sumSq += brightness * brightness; n++;
-                    if (x > xStart) {
-                        const prev = d[i-4] * 0.299 + d[i-3] * 0.587 + d[i-2] * 0.114;
-                        if (Math.abs(brightness - prev) > 30) edgeCount++;
-                    }
-                }
+          const ctx = state._wallCtx;
+          ctx.drawImage(state.video, 0, 0, 64, 48);
+          const img = ctx.getImageData(0, 0, 64, 48);
+          const d = img.data;
+          let sum = 0,
+            sumSq = 0,
+            n = 0,
+            edgeCount = 0;
+          const xStart = 16,
+            xEnd = 48,
+            yStart = 10,
+            yEnd = 38;
+          for (let y = yStart; y < yEnd; y++) {
+            for (let x = xStart; x < xEnd; x++) {
+              const i = (y * 64 + x) * 4;
+              const brightness =
+                d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
+              sum += brightness;
+              sumSq += brightness * brightness;
+              n++;
+              if (x > xStart) {
+                const prev =
+                  d[i - 4] * 0.299 + d[i - 3] * 0.587 + d[i - 2] * 0.114;
+                if (Math.abs(brightness - prev) > 30) edgeCount++;
+              }
             }
-            const mean = sum / n;
-            const variance = (sumSq / n) - (mean * mean);
-            const edgeRatio = edgeCount / n;
-            if (variance < 150 && edgeRatio < 0.06) return { level: 'danger', key: 'wall_fast', label: 'WALL', speak: 'Stop', uiDetail: `Wall detected (v:${variance.toFixed(0)} e:${edgeRatio.toFixed(2)})`, fromDepth: true };
-            if (variance < 350 && edgeRatio < 0.10) return { level: 'warning', key: 'wall_fast', label: 'OBSTACLE', speak: 'Slow', uiDetail: `Obstacle ahead`, fromDepth: true };
-            return null;
-        } catch (e) { return null; }
-    }
+          }
+          const mean = sum / n;
+          const variance = sumSq / n - mean * mean;
+          const edgeRatio = edgeCount / n;
+          if (variance < 150 && edgeRatio < 0.06)
+            return {
+              level: "danger",
+              key: "wall_fast",
+              label: "WALL",
+              speak: "Stop",
+              uiDetail: `Wall detected (v:${variance.toFixed(0)} e:${edgeRatio.toFixed(2)})`,
+              fromDepth: true,
+            };
+          if (variance < 350 && edgeRatio < 0.1)
+            return {
+              level: "warning",
+              key: "wall_fast",
+              label: "OBSTACLE",
+              speak: "Slow",
+              uiDetail: `Obstacle ahead`,
+              fromDepth: true,
+            };
+          return null;
+        } catch (e) {
+          return null;
+        }
+      }
 
-    // ========== FAST HAZARD LOOP (50ms) ==========
-    let _fastLoopRunning = false;
-    let _lastFastThreat = 'safe';
+      // ========== FAST HAZARD LOOP (50ms) ==========
+      let _fastLoopRunning = false;
+      let _lastFastThreat = "safe";
 
-    function fastHazardLoop() {
+      function fastHazardLoop() {
         if (_fastLoopRunning) return;
         _fastLoopRunning = true;
 
         if (!state.isRunning || !state.video || state.video.videoWidth === 0) {
-            _fastLoopRunning = false;
-            setTimeout(fastHazardLoop, 100);
-            return;
+          _fastLoopRunning = false;
+          setTimeout(fastHazardLoop, 100);
+          return;
         }
 
         const now = Date.now();
-        let threat = 'safe', label = '', detail = '', pos = 'ahead';
+        let threat = "safe",
+          label = "",
+          detail = "",
+          pos = "ahead";
 
         const wallResult = fastWallCheck();
         if (wallResult) {
-            state.depthHazard = { ...wallResult, expiry: now + 800 };
-            threat = wallResult.level; label = wallResult.label; detail = wallResult.uiDetail;
+          state.depthHazard = { ...wallResult, expiry: now + 800 };
+          threat = wallResult.level;
+          label = wallResult.label;
+          detail = wallResult.uiDetail;
         }
 
-        if (threat === 'safe' && state.depthHistory.length >= 2) {
-            const last = state.depthHistory[state.depthHistory.length - 1];
-            if (!last.lidar) {
-                const dr = computeDepthHazard(last.c, last.l, last.r);
-                if (dr) {
-                    state.depthHazard = { ...dr, expiry: now + 800 };
-                    threat = dr.level; label = dr.label; detail = dr.uiDetail;
-                }
+        if (threat === "safe" && state.depthHistory.length >= 2) {
+          const last = state.depthHistory[state.depthHistory.length - 1];
+          if (!last.lidar) {
+            const dr = computeDepthHazard(last.c, last.l, last.r);
+            if (dr) {
+              state.depthHazard = { ...dr, expiry: now + 800 };
+              threat = dr.level;
+              label = dr.label;
+              detail = dr.uiDetail;
             }
+          }
         }
 
-        if (threat === 'safe') {
-            for (const hz of [state.depthHazard, state.aiHazard]) {
-                if (!hz || now > hz.expiry) continue;
-                if (hz.level === 'danger') { threat = 'danger'; label = hz.label; detail = hz.uiDetail; break; }
-                if (hz.level === 'warning') { threat = 'warning'; label = hz.label; detail = hz.uiDetail; }
+        if (threat === "safe") {
+          for (const hz of [state.depthHazard, state.aiHazard]) {
+            if (!hz || now > hz.expiry) continue;
+            if (hz.level === "danger") {
+              threat = "danger";
+              label = hz.label;
+              detail = hz.uiDetail;
+              break;
             }
+            if (hz.level === "warning") {
+              threat = "warning";
+              label = hz.label;
+              detail = hz.uiDetail;
+            }
+          }
         }
 
-        if (threat === 'safe' && state._mainThreat && state._mainThreat !== 'safe' && state.currentObstacle) {
-            threat = state._mainThreat;
-            const ob = state.currentObstacle;
-            label = ob.displayLabel || ob.name || 'Obstacle';
-            detail = ob.uiDetail || `${(ob.distance * 3.28084).toFixed(0)} ft ${ob.position}`;
-            pos = ob.position || 'ahead';
+        if (
+          threat === "safe" &&
+          state._mainThreat &&
+          state._mainThreat !== "safe" &&
+          state.currentObstacle
+        ) {
+          threat = state._mainThreat;
+          const ob = state.currentObstacle;
+          label = ob.displayLabel || ob.name || "Obstacle";
+          detail =
+            ob.uiDetail ||
+            `${(ob.distance * 3.28084).toFixed(0)} ft ${ob.position}`;
+          pos = ob.position || "ahead";
         }
 
-        const cleanLabel = label.replace(/ ahead$/i, '');
-        if (threat === 'danger') {
-            updateUI('danger', '!', `STOP! ${cleanLabel}!`, '');
-            updateDirections(pos, 'danger');
-        } else if (threat === 'warning') {
-            updateUI('warning', '!', `${cleanLabel} ahead`, '');
-            updateDirections(pos, 'warning');
+        const cleanLabel = label.replace(/ ahead$/i, "");
+        if (threat === "danger") {
+          updateUI("danger", "!", `STOP! ${cleanLabel}!`, "");
+          updateDirections(pos, "danger");
+        } else if (threat === "warning") {
+          updateUI("warning", "!", `${cleanLabel} ahead`, "");
+          updateDirections(pos, "warning");
         } else {
-            updateUI('safe', 'OK', 'Path Clear', '');
-            updateDirections(null, 'safe');
+          updateUI("safe", "OK", "Path Clear", "");
+          updateDirections(null, "safe");
         }
 
         if (!state.isPaused) {
-            const changed = threat !== _lastFastThreat;
-            if (changed) {
-                if (threat === 'danger') {
-                    speakAlert('fast_danger', `Watch out. ${cleanLabel}.`, 3);
-                    vibrateAlert('danger');
-                    playAlertSound(pos, 'danger');
-                } else if (threat === 'warning') {
-                    speakAlert('fast_warning', `Watch out, ${cleanLabel} ahead.`, 2);
-                    vibrateAlert('warning');
-                    playAlertSound(pos, 'warning');
-                } else if (threat === 'safe') {
-                    speakAlert('fast_safe', 'Path clear.', 1);
-                }
+          const changed = threat !== _lastFastThreat;
+          if (changed) {
+            if (threat === "danger") {
+              speakAlert("fast_danger", `Watch out. ${cleanLabel}.`, 3);
+              vibrateAlert("danger");
+              playAlertSound(pos, "danger");
+            } else if (threat === "warning") {
+              speakAlert("fast_warning", `Watch out, ${cleanLabel} ahead.`, 2);
+              vibrateAlert("warning");
+              playAlertSound(pos, "warning");
+            } else if (threat === "safe") {
+              speakAlert("fast_safe", "Path clear.", 1);
             }
+          }
         }
 
         _lastFastThreat = threat;
         state.currentStatus = threat;
         _fastLoopRunning = false;
         setTimeout(fastHazardLoop, 50);
-    }
+      }
 
-    // ========== MAIN PROTECTION LOOP ==========
-    let _threatHistory = [];
-    const SAFE_CONFIRM_COUNT = 2;
-    let _loopRunning = false;
+      // ========== MAIN PROTECTION LOOP ==========
+      let _threatHistory = [];
+      const SAFE_CONFIRM_COUNT = 2;
+      let _loopRunning = false;
 
-    async function protectionLoop() {
+      async function protectionLoop() {
         if (_loopRunning) return;
         _loopRunning = true;
 
         if (!state.isRunning) {
-            _loopRunning = false;
-            setTimeout(protectionLoop, 500);
-            return;
+          _loopRunning = false;
+          setTimeout(protectionLoop, 500);
+          return;
         }
 
         const now = Date.now();
@@ -1702,65 +2613,119 @@
         updateDepthCalibration(state.localDetections);
 
         let mostDangerous = null;
-        let rawThreat = 'safe';
+        let rawThreat = "safe";
 
         for (const det of state.localDetections) {
-            if (!det.inPath) continue;
-            if (det.distance < CONFIG.DANGER_ZONE) {
-                if (!mostDangerous || det.distance < mostDangerous.distance) { mostDangerous = det; rawThreat = 'danger'; }
-            } else if (det.distance < CONFIG.WARNING_ZONE && rawThreat !== 'danger') {
-                if (!mostDangerous || det.distance < mostDangerous.distance) { mostDangerous = det; rawThreat = 'warning'; }
+          if (!det.inPath) continue;
+          if (det.distance < CONFIG.DANGER_ZONE) {
+            if (!mostDangerous || det.distance < mostDangerous.distance) {
+              mostDangerous = det;
+              rawThreat = "danger";
             }
+          } else if (
+            det.distance < CONFIG.WARNING_ZONE &&
+            rawThreat !== "danger"
+          ) {
+            if (!mostDangerous || det.distance < mostDangerous.distance) {
+              mostDangerous = det;
+              rawThreat = "warning";
+            }
+          }
         }
 
         _threatHistory.push(rawThreat);
         if (_threatHistory.length > 5) _threatHistory.shift();
 
         let highestThreat;
-        if (rawThreat === 'danger' || rawThreat === 'warning') {
-            highestThreat = rawThreat;
+        if (rawThreat === "danger" || rawThreat === "warning") {
+          highestThreat = rawThreat;
         } else {
-            const recent = _threatHistory.slice(-SAFE_CONFIRM_COUNT);
-            const allSafe = recent.length >= SAFE_CONFIRM_COUNT && recent.every(t => t === 'safe');
-            highestThreat = allSafe ? 'safe' : (state.currentStatus || 'safe');
+          const recent = _threatHistory.slice(-SAFE_CONFIRM_COUNT);
+          const allSafe =
+            recent.length >= SAFE_CONFIRM_COUNT &&
+            recent.every((t) => t === "safe");
+          highestThreat = allSafe ? "safe" : state.currentStatus || "safe";
         }
 
         for (const hz of [state.depthHazard, state.aiHazard]) {
-            if (!hz || now > hz.expiry) continue;
-            if (hz.level === 'danger' && highestThreat !== 'danger') {
-                highestThreat = 'danger';
-                if (!mostDangerous) mostDangerous = { name: hz.key, position: 'ahead', distance: 0.8, inPath: true, confidence: 1.0, danger: 'obstacle', fromAI: true, displayLabel: hz.label, uiDetail: hz.uiDetail };
-            } else if (hz.level === 'warning' && highestThreat === 'safe') {
-                highestThreat = 'warning';
-                if (!mostDangerous) mostDangerous = { name: hz.key, position: 'ahead', distance: 1.5, inPath: true, confidence: 1.0, danger: 'obstacle', fromAI: true, displayLabel: hz.label, uiDetail: hz.uiDetail };
-            }
+          if (!hz || now > hz.expiry) continue;
+          if (hz.level === "danger" && highestThreat !== "danger") {
+            highestThreat = "danger";
+            if (!mostDangerous)
+              mostDangerous = {
+                name: hz.key,
+                position: "ahead",
+                distance: 0.8,
+                inPath: true,
+                confidence: 1.0,
+                danger: "obstacle",
+                fromAI: true,
+                displayLabel: hz.label,
+                uiDetail: hz.uiDetail,
+              };
+          } else if (hz.level === "warning" && highestThreat === "safe") {
+            highestThreat = "warning";
+            if (!mostDangerous)
+              mostDangerous = {
+                name: hz.key,
+                position: "ahead",
+                distance: 1.5,
+                inPath: true,
+                confidence: 1.0,
+                danger: "obstacle",
+                fromAI: true,
+                displayLabel: hz.label,
+                uiDetail: hz.uiDetail,
+              };
+          }
         }
 
-        if (state.aiHazard && now > state.aiHazard.expiry) state.aiHazard = null;
-        if (state.depthHazard && now > state.depthHazard.expiry) state.depthHazard = null;
+        if (state.aiHazard && now > state.aiHazard.expiry)
+          state.aiHazard = null;
+        if (state.depthHazard && now > state.depthHazard.expiry)
+          state.depthHazard = null;
 
-        if (state.depthPipeline && now - state.lastDepthScan > CONFIG.DEPTH_SCAN_INTERVAL) {
-            state.lastDepthScan = now;
-            runDepthDetection().then(hazard => {
-                if (!hazard) return;
-                const ttl = hazard.level === 'danger' ? 1200 : 900;
-                state.depthHazard = { ...hazard, expiry: Date.now() + ttl };
+        if (
+          state.depthPipeline &&
+          now - state.lastDepthScan > CONFIG.DEPTH_SCAN_INTERVAL
+        ) {
+          state.lastDepthScan = now;
+          runDepthDetection().then((hazard) => {
+            if (!hazard) return;
+            const ttl = hazard.level === "danger" ? 1200 : 900;
+            state.depthHazard = { ...hazard, expiry: Date.now() + ttl };
+          });
+        }
+
+        if (
+          now - state.lastAIScan > CONFIG.AI_SCAN_INTERVAL &&
+          !state.isPaused &&
+          !state.aiScanInProgress
+        ) {
+          state.lastAIScan = now;
+          state.aiScanInProgress = true;
+          analyzeWithAI("guide")
+            .then((result) => {
+              state.aiScanInProgress = false;
+              if (!result) return;
+              state.aiResult = result;
+              const hazard = parseAIResult(result);
+              if (hazard.level === "clear") {
+                state.aiHazard = null;
+                return;
+              }
+              const ttl = hazard.level === "danger" ? 4000 : 3000;
+              state.aiHazard = { ...hazard, expiry: Date.now() + ttl };
+              if (hazard.speak)
+                speakAlert(
+                  hazard.key,
+                  hazard.speak,
+                  hazard.level === "danger" ? 3 : 2,
+                );
+            })
+            .catch(() => {
+              state.aiScanInProgress = false;
             });
-        }
-
-        if (now - state.lastAIScan > CONFIG.AI_SCAN_INTERVAL && !state.isPaused && !state.aiScanInProgress) {
-            state.lastAIScan = now;
-            state.aiScanInProgress = true;
-            analyzeWithAI('guide').then(result => {
-                state.aiScanInProgress = false;
-                if (!result) return;
-                state.aiResult = result;
-                const hazard = parseAIResult(result);
-                if (hazard.level === 'clear') { state.aiHazard = null; return; }
-                const ttl = hazard.level === 'danger' ? 4000 : 3000;
-                state.aiHazard = { ...hazard, expiry: Date.now() + ttl };
-                if (hazard.speak) speakAlert(hazard.key, hazard.speak, hazard.level === 'danger' ? 3 : 2);
-            }).catch(() => { state.aiScanInProgress = false; });
         }
 
         state._mainThreat = highestThreat;
@@ -1768,348 +2733,484 @@
 
         _loopRunning = false;
         setTimeout(protectionLoop, CONFIG.LOCAL_SCAN_INTERVAL);
-    }
-    
-    // ========== UI UPDATES ==========
-    function updateUI(status, icon, text, detail) {
-        const badge = document.getElementById('statusBadge');
-        const box = document.getElementById('alertBox');
-        const iconEl = document.getElementById('alertIcon');
-        const textEl = document.getElementById('alertText');
-        const detailEl = document.getElementById('alertDetail');
+      }
+
+      // ========== UI UPDATES ==========
+      function updateUI(status, icon, text, detail) {
+        const badge = document.getElementById("statusBadge");
+        const box = document.getElementById("alertBox");
+        const iconEl = document.getElementById("alertIcon");
+        const textEl = document.getElementById("alertText");
+        const detailEl = document.getElementById("alertDetail");
         badge.className = `status-badge badge-${status}`;
-        badge.textContent = status === 'safe' ? 'SAFE' : status === 'warning' ? 'CAUTION' : 'DANGER';
+        badge.textContent =
+          status === "safe"
+            ? "SAFE"
+            : status === "warning"
+              ? "CAUTION"
+              : "DANGER";
         box.className = `alert-box ${status}`;
         iconEl.textContent = icon;
         textEl.textContent = text;
         detailEl.textContent = detail;
-    }
-    
-    function updateDirections(position, status) {
-        ['Left', 'Ahead', 'Right'].forEach(d => {
-            const el = document.getElementById(`dir${d}`);
-            el.className = 'direction-btn';
-            if (position === d.toLowerCase() || (position === 'ahead' && d === 'Ahead')) {
-                el.classList.add('active');
-                if (status === 'danger') el.classList.add('danger');
-            }
-        });
-    }
-    
-    // ========== USER ACTIONS ==========
-    async function describeArea() {
-        speak('Scanning surroundings...', true);
-        const result = await analyzeWithAI('detailed');
-        if (result) {
-            speak(result, true);
-        } else if (state.localDetections.length > 0) {
-            const items = state.localDetections.filter(d => d.confidence >= CONFIG.HIGH_CONFIDENCE).slice(0, 3).map(d => `${d.name} ${d.position}`).join(', ');
-            if (items) speak(`I see: ${items}`, true);
-            else speak('Objects detected but not clearly identified', true);
-        } else {
-            speak('Area appears clear', true);
-        }
-    }
-    
-    async function checkSafety() {
-        speak('Checking safety...', true);
-        const result = await analyzeWithAI('detailed');
-        if (result) {
-            speak(result, true);
-        } else {
-            const obstacle = state.localDetections.find(d => d.inPath);
-            if (obstacle) speak(`${getDisplayName(obstacle)} in your path, ${(obstacle.distance * 3.28084).toFixed(0)} feet ahead`, true);
-            else speak('Path appears clear', true);
-        }
-    }
-    
-    function speakDirection(dir) {
-        const items = state.localDetections.filter(d => d.position === dir);
-        if (items.length > 0) speak(`${getDisplayName(items[0])} on your ${dir}, about ${(items[0].distance * 3.28084).toFixed(0)} feet`, true);
-        else speak(`Nothing detected on your ${dir}`, true);
-        const el = document.getElementById(`dir${dir.charAt(0).toUpperCase() + dir.slice(1)}`);
-        el.classList.add('active');
-        setTimeout(() => el.classList.remove('active'), 1000);
-    }
-    
-    async function triggerAIScan() {
-        speak('Scanning surroundings...', true);
-        const result = await analyzeWithAI('detailed');
-        if (result) speak(result, true);
-        else speak('Scan complete. No additional hazards detected.', true);
-    }
+      }
 
-    // ========== VISION TRICKS ==========
-    function captureFrameCanvas() {
+      function updateDirections(position, status) {
+        ["Left", "Ahead", "Right"].forEach((d) => {
+          const el = document.getElementById(`dir${d}`);
+          el.className = "direction-btn";
+          if (
+            position === d.toLowerCase() ||
+            (position === "ahead" && d === "Ahead")
+          ) {
+            el.classList.add("active");
+            if (status === "danger") el.classList.add("danger");
+          }
+        });
+      }
+
+      // ========== USER ACTIONS ==========
+      async function describeArea() {
+        speak("Scanning surroundings...", true);
+        const result = await analyzeWithAI("detailed");
+        if (result) {
+          speak(result, true);
+        } else if (state.localDetections.length > 0) {
+          const items = state.localDetections
+            .filter((d) => d.confidence >= CONFIG.HIGH_CONFIDENCE)
+            .slice(0, 3)
+            .map((d) => `${d.name} ${d.position}`)
+            .join(", ");
+          if (items) speak(`I see: ${items}`, true);
+          else speak("Objects detected but not clearly identified", true);
+        } else {
+          speak("Area appears clear", true);
+        }
+      }
+
+      async function checkSafety() {
+        speak("Checking safety...", true);
+        const result = await analyzeWithAI("detailed");
+        if (result) {
+          speak(result, true);
+        } else {
+          const obstacle = state.localDetections.find((d) => d.inPath);
+          if (obstacle)
+            speak(
+              `${getDisplayName(obstacle)} in your path, ${(obstacle.distance * 3.28084).toFixed(0)} feet ahead`,
+              true,
+            );
+          else speak("Path appears clear", true);
+        }
+      }
+
+      function speakDirection(dir) {
+        const items = state.localDetections.filter((d) => d.position === dir);
+        if (items.length > 0)
+          speak(
+            `${getDisplayName(items[0])} on your ${dir}, about ${(items[0].distance * 3.28084).toFixed(0)} feet`,
+            true,
+          );
+        else speak(`Nothing detected on your ${dir}`, true);
+        const el = document.getElementById(
+          `dir${dir.charAt(0).toUpperCase() + dir.slice(1)}`,
+        );
+        el.classList.add("active");
+        setTimeout(() => el.classList.remove("active"), 1000);
+      }
+
+      async function triggerAIScan() {
+        speak("Scanning surroundings...", true);
+        const result = await analyzeWithAI("detailed");
+        if (result) speak(result, true);
+        else speak("Scan complete. No additional hazards detected.", true);
+      }
+
+      // ========== VISION TRICKS ==========
+      function captureFrameCanvas() {
         const v = state.video;
         if (!v || !v.videoWidth) return null;
-        const canvas = document.createElement('canvas');
-        canvas.width = v.videoWidth; canvas.height = v.videoHeight;
-        canvas.getContext('2d').drawImage(v, 0, 0);
+        const canvas = document.createElement("canvas");
+        canvas.width = v.videoWidth;
+        canvas.height = v.videoHeight;
+        canvas.getContext("2d").drawImage(v, 0, 0);
         return canvas;
-    }
+      }
 
-    let _tesseractWorker = null;
-    let _tesseractLoading = null;
-    async function getTesseractWorker() {
+      let _tesseractWorker = null;
+      let _tesseractLoading = null;
+      async function getTesseractWorker() {
         if (_tesseractWorker) return _tesseractWorker;
         if (_tesseractLoading) return _tesseractLoading;
         _tesseractLoading = (async () => {
-            try {
-                if (!window.Tesseract) {
-                    await new Promise((resolve, reject) => {
-                        const s = document.createElement('script');
-                        s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-                        s.onload = resolve; s.onerror = reject;
-                        document.head.appendChild(s);
-                    });
-                }
-                _tesseractWorker = await window.Tesseract.createWorker('eng');
-                return _tesseractWorker;
-            } catch (e) {
-                console.error('Tesseract load failed:', e);
-                _tesseractLoading = null;
-                return null;
+          try {
+            if (!window.Tesseract) {
+              await new Promise((resolve, reject) => {
+                const s = document.createElement("script");
+                s.src =
+                  "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+                s.onload = resolve;
+                s.onerror = reject;
+                document.head.appendChild(s);
+              });
             }
+            _tesseractWorker = await window.Tesseract.createWorker("eng");
+            return _tesseractWorker;
+          } catch (e) {
+            console.error("Tesseract load failed:", e);
+            _tesseractLoading = null;
+            return null;
+          }
         })();
         return _tesseractLoading;
-    }
+      }
 
-    function classifyColorRGB(r, g, b) {
-        const maxC = Math.max(r, g, b), minC = Math.min(r, g, b);
-        const l = (maxC + minC) / 2, delta = maxC - minC;
+      function classifyColorRGB(r, g, b) {
+        const maxC = Math.max(r, g, b),
+          minC = Math.min(r, g, b);
+        const l = (maxC + minC) / 2,
+          delta = maxC - minC;
         if (delta < 0.08) {
-            if (l < 0.12) return 'black'; if (l < 0.35) return 'dark gray';
-            if (l < 0.65) return 'gray'; if (l < 0.88) return 'light gray'; return 'white';
+          if (l < 0.12) return "black";
+          if (l < 0.35) return "dark gray";
+          if (l < 0.65) return "gray";
+          if (l < 0.88) return "light gray";
+          return "white";
         }
         let h;
-        if (maxC === r) h = ((g - b) / delta) + (g < b ? 6 : 0);
-        else if (maxC === g) h = ((b - r) / delta) + 2;
-        else h = ((r - g) / delta) + 4;
+        if (maxC === r) h = (g - b) / delta + (g < b ? 6 : 0);
+        else if (maxC === g) h = (b - r) / delta + 2;
+        else h = (r - g) / delta + 4;
         h *= 60;
-        const lightPrefix = l < 0.28 ? 'dark ' : (l > 0.78 ? 'light ' : '');
-        if (h < 12 || h >= 348) return lightPrefix + 'red';
-        if (h < 40) return lightPrefix + 'orange';
-        if (h < 65) return lightPrefix + 'yellow';
-        if (h < 165) return lightPrefix + 'green';
-        if (h < 200) return lightPrefix + 'teal';
-        if (h < 255) return lightPrefix + 'blue';
-        if (h < 290) return lightPrefix + 'purple';
-        return lightPrefix + 'pink';
-    }
+        const lightPrefix = l < 0.28 ? "dark " : l > 0.78 ? "light " : "";
+        if (h < 12 || h >= 348) return lightPrefix + "red";
+        if (h < 40) return lightPrefix + "orange";
+        if (h < 65) return lightPrefix + "yellow";
+        if (h < 165) return lightPrefix + "green";
+        if (h < 200) return lightPrefix + "teal";
+        if (h < 255) return lightPrefix + "blue";
+        if (h < 290) return lightPrefix + "purple";
+        return lightPrefix + "pink";
+      }
 
-    function webIdentifyColor() {
+      function webIdentifyColor() {
         const canvas = captureFrameCanvas();
-        if (!canvas) { speak('Camera not ready.', true); return; }
-        const ctx = canvas.getContext('2d');
-        const w = Math.floor(canvas.width * 0.3), h = Math.floor(canvas.height * 0.3);
-        const x = Math.floor((canvas.width - w) / 2), y = Math.floor((canvas.height - h) / 2);
+        if (!canvas) {
+          speak("Camera not ready.", true);
+          return;
+        }
+        const ctx = canvas.getContext("2d");
+        const w = Math.floor(canvas.width * 0.3),
+          h = Math.floor(canvas.height * 0.3);
+        const x = Math.floor((canvas.width - w) / 2),
+          y = Math.floor((canvas.height - h) / 2);
         const data = ctx.getImageData(x, y, w, h).data;
-        let rs = 0, gs = 0, bs = 0;
+        let rs = 0,
+          gs = 0,
+          bs = 0;
         const n = data.length / 4;
-        for (let i = 0; i < data.length; i += 4) { rs += data[i]; gs += data[i + 1]; bs += data[i + 2]; }
-        speak(`That looks ${classifyColorRGB(rs / n / 255, gs / n / 255, bs / n / 255)}.`, true);
-    }
+        for (let i = 0; i < data.length; i += 4) {
+          rs += data[i];
+          gs += data[i + 1];
+          bs += data[i + 2];
+        }
+        speak(
+          `That looks ${classifyColorRGB(rs / n / 255, gs / n / 255, bs / n / 255)}.`,
+          true,
+        );
+      }
 
-    async function webRecognizeText() {
+      async function webRecognizeText() {
         const canvas = captureFrameCanvas();
-        if (!canvas) { speak('Camera not ready.', true); return; }
-        speak('Reading.', true);
+        if (!canvas) {
+          speak("Camera not ready.", true);
+          return;
+        }
+        speak("Reading.", true);
         const worker = await getTesseractWorker();
-        if (!worker) { speak('Reading not available right now.', true); return; }
+        if (!worker) {
+          speak("Reading not available right now.", true);
+          return;
+        }
         try {
-            const { data } = await worker.recognize(canvas);
-            const text = (data.text || '').trim().replace(/\s+/g, ' ');
-            if (!text) { speak('No text found.', true); return; }
-            speak(text.length > 240 ? text.slice(0, 240) + '…' : text, true);
-        } catch (e) { console.error('OCR error:', e); speak('Could not read text.', true); }
-    }
+          const { data } = await worker.recognize(canvas);
+          const text = (data.text || "").trim().replace(/\s+/g, " ");
+          if (!text) {
+            speak("No text found.", true);
+            return;
+          }
+          speak(text.length > 240 ? text.slice(0, 240) + "…" : text, true);
+        } catch (e) {
+          console.error("OCR error:", e);
+          speak("Could not read text.", true);
+        }
+      }
 
-    async function webIdentifyCurrency() {
+      async function webIdentifyCurrency() {
         const canvas = captureFrameCanvas();
-        if (!canvas) { speak('Camera not ready.', true); return; }
-        speak('Reading bill.', true);
+        if (!canvas) {
+          speak("Camera not ready.", true);
+          return;
+        }
+        speak("Reading bill.", true);
         const worker = await getTesseractWorker();
-        if (!worker) { speak('Bill reader not available right now.', true); return; }
+        if (!worker) {
+          speak("Bill reader not available right now.", true);
+          return;
+        }
         try {
-            const { data } = await worker.recognize(canvas);
-            const text = (data.text || '').toUpperCase();
-            const hasMarker = text.includes('FEDERAL RESERVE') || text.includes('UNITED STATES') || text.includes('DOLLARS');
-            const denoms = [
-                { d: '100', w: 'HUNDRED', s: 'one hundred dollars' },
-                { d: '50',  w: 'FIFTY',   s: 'fifty dollars' },
-                { d: '20',  w: 'TWENTY',  s: 'twenty dollars' },
-                { d: '10',  w: 'TEN',     s: 'ten dollars' },
-                { d: '5',   w: 'FIVE',    s: 'five dollars' },
-                { d: '1',   w: 'ONE',     s: 'one dollar' },
-            ];
-            for (const { d, w, s } of denoms) {
-                const re = new RegExp(`\\b${d}\\b`);
-                if (re.test(text) && (text.includes(w) || hasMarker)) { speak(s + '.', true); return; }
+          const { data } = await worker.recognize(canvas);
+          const text = (data.text || "").toUpperCase();
+          const hasMarker =
+            text.includes("FEDERAL RESERVE") ||
+            text.includes("UNITED STATES") ||
+            text.includes("DOLLARS");
+          const denoms = [
+            { d: "100", w: "HUNDRED", s: "one hundred dollars" },
+            { d: "50", w: "FIFTY", s: "fifty dollars" },
+            { d: "20", w: "TWENTY", s: "twenty dollars" },
+            { d: "10", w: "TEN", s: "ten dollars" },
+            { d: "5", w: "FIVE", s: "five dollars" },
+            { d: "1", w: "ONE", s: "one dollar" },
+          ];
+          for (const { d, w, s } of denoms) {
+            const re = new RegExp(`\\b${d}\\b`);
+            if (re.test(text) && (text.includes(w) || hasMarker)) {
+              speak(s + ".", true);
+              return;
             }
-            speak('Cannot identify the bill. Hold it flat with the front facing the camera.', true);
-        } catch (e) { console.error('Bill OCR error:', e); speak('Could not read bill.', true); }
-    }
+          }
+          speak(
+            "Cannot identify the bill. Hold it flat with the front facing the camera.",
+            true,
+          );
+        } catch (e) {
+          console.error("Bill OCR error:", e);
+          speak("Could not read bill.", true);
+        }
+      }
 
-    // ========== GESTURES ==========
-    function setupGestures() {
-        const area = document.getElementById('alertArea');
+      // ========== GESTURES ==========
+      function setupGestures() {
+        const area = document.getElementById("alertArea");
         let touchStart = { x: 0, y: 0, time: 0 };
-        
-        area.addEventListener('touchstart', e => {
+
+        area.addEventListener(
+          "touchstart",
+          (e) => {
             unlockAudio();
-            touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, time: Date.now() };
-        }, { passive: true });
-        
-        area.addEventListener('touchend', e => {
+            touchStart = {
+              x: e.touches[0].clientX,
+              y: e.touches[0].clientY,
+              time: Date.now(),
+            };
+          },
+          { passive: true },
+        );
+
+        area.addEventListener(
+          "touchend",
+          (e) => {
             const dx = e.changedTouches[0].clientX - touchStart.x;
             const dy = e.changedTouches[0].clientY - touchStart.y;
             const duration = Date.now() - touchStart.time;
-            if (duration > 1500) { showHelp(); return; }
-            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) { speakDirection(dx > 0 ? 'right' : 'left'); return; }
+            if (duration > 1500) {
+              showHelp();
+              return;
+            }
+            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
+              speakDirection(dx > 0 ? "right" : "left");
+              return;
+            }
             const y = e.changedTouches[0].clientY / window.innerHeight;
             if (y < 0.4) describeArea();
             else if (y > 0.6) triggerAIScan();
-        }, { passive: true });
-        
-        document.getElementById('btnDescribe').addEventListener('click', () => { unlockAudio(); describeArea(); });
-        document.getElementById('btnMic').addEventListener('click', () => { unlockAudio(); startListening(); });
-        document.getElementById('btnSafe').addEventListener('click', () => { unlockAudio(); checkSafety(); });
+          },
+          { passive: true },
+        );
+
+        document.getElementById("btnDescribe").addEventListener("click", () => {
+          unlockAudio();
+          describeArea();
+        });
+        document.getElementById("btnMic").addEventListener("click", () => {
+          unlockAudio();
+          startListening();
+        });
+        document.getElementById("btnSafe").addEventListener("click", () => {
+          unlockAudio();
+          checkSafety();
+        });
 
         // CAM toggle
-        const camBtn = document.getElementById('btnCam');
-        const videoEl = document.getElementById('video');
+        const camBtn = document.getElementById("btnCam");
+        const videoEl = document.getElementById("video");
         if (camBtn && videoEl) {
-            camBtn.setAttribute('aria-pressed', 'false');
-            camBtn.addEventListener('click', () => {
-                const turningOn = !camBtn.classList.contains('on');
-                camBtn.classList.toggle('on', turningOn);
-                videoEl.classList.toggle('cam-on', turningOn);
-                camBtn.setAttribute('aria-pressed', turningOn ? 'true' : 'false');
-            });
+          camBtn.setAttribute("aria-pressed", "false");
+          camBtn.addEventListener("click", () => {
+            const turningOn = !camBtn.classList.contains("on");
+            camBtn.classList.toggle("on", turningOn);
+            videoEl.classList.toggle("cam-on", turningOn);
+            camBtn.setAttribute("aria-pressed", turningOn ? "true" : "false");
+          });
         }
 
         // CC toggle
-        document.getElementById('btnCC').addEventListener('click', () => { unlockAudio(); toggleCaptions(); });
+        document.getElementById("btnCC").addEventListener("click", () => {
+          unlockAudio();
+          toggleCaptions();
+        });
 
         // Sound detection toggle
-        document.getElementById('btnSnd').addEventListener('click', () => { unlockAudio(); toggleSoundDetection(); });
-    }
-    
-    // ========== HELP ==========
-    function showHelp() {
-        document.getElementById('help').classList.add('visible');
-        speak('GuideDog automatically warns you about obstacles, stairs, walls, and doors. Tap CC to enable live captions. Tap the sound icon to detect environmental sounds. Tap the button to start.', true);
-    }
+        document.getElementById("btnSnd").addEventListener("click", () => {
+          unlockAudio();
+          toggleSoundDetection();
+        });
+      }
 
-    function hideHelp() {
-        document.getElementById('help').classList.remove('visible');
-        try { speechSynthesis.cancel(); } catch(e){}
+      // ========== HELP ==========
+      function showHelp() {
+        document.getElementById("help").classList.add("visible");
+        speak(
+          "GuideDog automatically warns you about obstacles, stairs, walls, and doors. Tap CC to enable live captions. Tap the sound icon to detect environmental sounds. Tap the button to start.",
+          true,
+        );
+      }
+
+      function hideHelp() {
+        document.getElementById("help").classList.remove("visible");
+        try {
+          speechSynthesis.cancel();
+        } catch (e) {}
         unlockAudio();
         state.isRunning = true;
         state.isPaused = false;
         protectionLoop();
         fastHazardLoop();
-    }
+      }
 
-    // ========== COLORBLIND ==========
-    function setColorblind(enabled) {
-        document.body.classList.toggle('colorblind', !!enabled);
-        const item = document.getElementById('colorblindToggleItem');
-        const status = document.getElementById('cbStatus');
-        if (item) item.setAttribute('aria-pressed', enabled ? 'true' : 'false');
-        if (status) status.textContent = enabled ? '— on' : '— off';
-        try { localStorage.setItem('cb', enabled ? '1' : '0'); } catch (e) {}
-    }
-    function initColorblind() {
+      // ========== COLORBLIND ==========
+      function setColorblind(enabled) {
+        document.body.classList.toggle("colorblind", !!enabled);
+        const item = document.getElementById("colorblindToggleItem");
+        const status = document.getElementById("cbStatus");
+        if (item) item.setAttribute("aria-pressed", enabled ? "true" : "false");
+        if (status) status.textContent = enabled ? "— on" : "— off";
+        try {
+          localStorage.setItem("cb", enabled ? "1" : "0");
+        } catch (e) {}
+      }
+      function initColorblind() {
         let enabled = false;
-        try { enabled = localStorage.getItem('cb') === '1'; } catch (e) {}
+        try {
+          enabled = localStorage.getItem("cb") === "1";
+        } catch (e) {}
         setColorblind(enabled);
-        const item = document.getElementById('colorblindToggleItem');
+        const item = document.getElementById("colorblindToggleItem");
         if (item) {
-            item.addEventListener('click', () => {
-                const next = !document.body.classList.contains('colorblind');
-                setColorblind(next);
-                speak(next ? 'Colorblind mode on.' : 'Colorblind mode off.', true);
-            });
+          item.addEventListener("click", () => {
+            const next = !document.body.classList.contains("colorblind");
+            setColorblind(next);
+            speak(next ? "Colorblind mode on." : "Colorblind mode off.", true);
+          });
         }
-    }
+      }
 
-    // ========== INIT ==========
-    async function init() {
-        state.video = document.getElementById('video');
+      // ========== INIT ==========
+      async function init() {
+        state.video = document.getElementById("video");
         initAudio();
         initSpeechRecognition();
         setupGestures();
         initColorblind();
 
-        document.getElementById('helpClose').addEventListener('click', hideHelp);
-        const privacyNotice = document.getElementById('privacyNotice');
+        document
+          .getElementById("helpClose")
+          .addEventListener("click", hideHelp);
+        const privacyNotice = document.getElementById("privacyNotice");
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-                audio: false
-            });
-            state.video.srcObject = stream;
-            await state.video.play();
-        } catch (e) { console.warn('Camera error:', e); }
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: "environment",
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
+            audio: false,
+          });
+          state.video.srcObject = stream;
+          await state.video.play();
+        } catch (e) {
+          console.warn("Camera error:", e);
+        }
 
         try {
-            state.model = await cocoSsd.load();
-        } catch (e) { console.error('COCO-SSD load failed:', e); }
+          state.model = await cocoSsd.load();
+        } catch (e) {
+          console.error("COCO-SSD load failed:", e);
+        }
 
-        document.getElementById('loading').classList.add('hidden');
+        document.getElementById("loading").classList.add("hidden");
         initDepthModel();
 
-        privacyNotice.style.display = 'flex';
+        privacyNotice.style.display = "flex";
         let privacyRead = false;
-        privacyNotice.addEventListener('click', () => {
-            if (!privacyRead) {
-                privacyRead = true;
-                unlockAudio();
-                try {
-                    speechSynthesis.cancel();
-                    const u = new SpeechSynthesisUtterance(
-                        'Welcome to GuideDog. ' +
-                        'This app uses your camera and cloud A.I. to help you navigate. ' +
-                        'It can also caption speech and detect environmental sounds using your microphone. ' +
-                        'No data is stored. Tap again to continue.'
-                    );
-                    u.rate = 1.0; u.volume = 1.0;
-                    speechSynthesis.speak(u);
-                } catch(e){}
-                return;
-            }
-            try { speechSynthesis.cancel(); } catch(e){}
-            privacyNotice.style.display = 'none';
-            showHelp();
+        privacyNotice.addEventListener("click", () => {
+          if (!privacyRead) {
+            privacyRead = true;
+            unlockAudio();
+            try {
+              speechSynthesis.cancel();
+              const u = new SpeechSynthesisUtterance(
+                "Welcome to GuideDog. " +
+                  "This app uses your camera and cloud A.I. to help you navigate. " +
+                  "It can also caption speech and detect environmental sounds using your microphone. " +
+                  "No data is stored. Tap again to continue.",
+              );
+              u.rate = 1.0;
+              u.volume = 1.0;
+              speechSynthesis.speak(u);
+            } catch (e) {}
+            return;
+          }
+          try {
+            speechSynthesis.cancel();
+          } catch (e) {}
+          privacyNotice.style.display = "none";
+          showHelp();
         });
-    }
-    
-    window.addEventListener('load', init);
-    
-    document.addEventListener('visibilitychange', () => {
+      }
+
+      window.addEventListener("load", init);
+
+      document.addEventListener("visibilitychange", () => {
         if (document.hidden) {
-            state.isRunning = false;
-            if (state.xrSession) { state.xrSession.end().catch(() => {}); state.xrSession = null; state.xrDepthActive = false; }
-            // Pause sound detection when hidden
-            if (state.yamnetInterval) { clearInterval(state.yamnetInterval); state.yamnetInterval = null; }
+          state.isRunning = false;
+          if (state.xrSession) {
+            state.xrSession.end().catch(() => {});
+            state.xrSession = null;
+            state.xrDepthActive = false;
+          }
+          // Pause sound detection when hidden
+          if (state.yamnetInterval) {
+            clearInterval(state.yamnetInterval);
+            state.yamnetInterval = null;
+          }
         } else if (state.model && state.video?.srcObject) {
-            state.isRunning = true;
-            protectionLoop();
-            // Restart sound detection if it was enabled
-            if (state.yamnetEnabled && !state.yamnetInterval) {
-                state.yamnetInterval = setInterval(() => {
-                    if (state.isRunning && state.yamnetEnabled) runYAMNet();
-                }, CONFIG.YAMNET_INTERVAL);
-            }
+          state.isRunning = true;
+          protectionLoop();
+          // Restart sound detection if it was enabled
+          if (state.yamnetEnabled && !state.yamnetInterval) {
+            state.yamnetInterval = setInterval(() => {
+              if (state.isRunning && state.yamnetEnabled) runYAMNet();
+            }, CONFIG.YAMNET_INTERVAL);
+          }
         }
-    });
-    
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js').catch(() => {});
-    }
+      });
+
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("sw.js").catch(() => {});
+      }
     </script>
-</body>
+  </body>
 </html>
