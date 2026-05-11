@@ -1844,6 +1844,28 @@
         return true;
       }
 
+      // ── Web Audio analyser state ──
+      let _analyser = null;
+      let _analyserBuf = null;
+
+      function initAnalyser() {
+        if (_analyser || !state.audioCtx || !state.yamnetMicStream) return;
+        try {
+          resumeAudio();
+          const src = state.audioCtx.createMediaStreamSource(
+            state.yamnetMicStream,
+          );
+          _analyser = state.audioCtx.createAnalyser();
+          _analyser.fftSize = 2048;
+          _analyser.smoothingTimeConstant = 0.5;
+          src.connect(_analyser);
+          _analyserBuf = new Float32Array(_analyser.frequencyBinCount);
+          console.log("Web Audio analyser ready, fftSize:", _analyser.fftSize);
+        } catch (e) {
+          console.warn("Analyser init error:", e);
+        }
+      }
+
       function runEnergyFallback(samples) {
         // If we have a live analyser, use frequency-domain analysis (much better)
         if (_analyser) {
