@@ -2002,92 +2002,344 @@
         });
       }
 
-      // Exact YAMNet class names (from the AudioSet ontology used by the
-      // TFLite model that MediaPipe ships) → friendly spoken label + urgency.
-      // The model emits these strings verbatim in category.categoryName.
+      // Sound taxonomy — two layers so many YAMNet classes can roll up to
+      // one user-facing alert:
+      //
+      //   SOUND_BUCKETS — bucket key → { label, urgency }
+      //   SOUND_LABELS  — YAMNet class name → bucket key
+      //
+      // handleMediaPipeResults sums scores per bucket, so e.g. when YAMNet
+      // splits its confidence across "Music" 0.18 + "Pop music" 0.14 +
+      // "Drum kit" 0.08, the music bucket gets 0.40 and fires — instead of
+      // each subclass being rejected individually.
+      const SOUND_BUCKETS = {
+        // ── danger ──
+        siren: { label: "Siren nearby", urgency: "danger" },
+        fire_alarm: { label: "Fire alarm", urgency: "danger" },
+        car_horn: { label: "Car horn", urgency: "danger" },
+        truck_horn: { label: "Truck horn", urgency: "danger" },
+        train_horn: { label: "Train horn", urgency: "danger" },
+        gunshot: { label: "Loud bang", urgency: "danger" },
+        explosion: { label: "Explosion", urgency: "danger" },
+        // ── warning ──
+        alarm: { label: "Alarm sounding", urgency: "warning" },
+        car_alarm: { label: "Car alarm", urgency: "warning" },
+        reversing: { label: "Vehicle reversing", urgency: "warning" },
+        shouting: { label: "Someone shouting", urgency: "warning" },
+        dog_warning: { label: "Dog barking", urgency: "warning" },
+        vehicle: { label: "Vehicle nearby", urgency: "warning" },
+        traffic: { label: "Traffic nearby", urgency: "warning" },
+        train: { label: "Train nearby", urgency: "warning" },
+        bicycle_bell: { label: "Bicycle nearby", urgency: "warning" },
+        thunder: { label: "Thunder", urgency: "warning" },
+        // ── info ──
+        speech: { label: "Someone speaking", urgency: "info" },
+        conversation: { label: "Conversation nearby", urgency: "info" },
+        music: { label: "Music playing", urgency: "info" },
+        crowd: { label: "Crowd nearby", urgency: "info" },
+        applause: { label: "Applause", urgency: "info" },
+        laughter: { label: "Laughter nearby", urgency: "info" },
+        baby_cry: { label: "Baby crying", urgency: "info" },
+        crying: { label: "Crying nearby", urgency: "info" },
+        knock: { label: "Knocking", urgency: "info" },
+        doorbell: { label: "Doorbell", urgency: "info" },
+        door: { label: "Door", urgency: "info" },
+        phone: { label: "Phone ringing", urgency: "info" },
+        rain: { label: "Rain", urgency: "info" },
+        alarm_clock: { label: "Alarm clock", urgency: "info" },
+        dog_info: { label: "Dog nearby", urgency: "info" },
+        cat: { label: "Cat nearby", urgency: "info" },
+      };
+
+      // YAMNet/AudioSet display names → bucket key. Names must match
+      // category.categoryName from MediaPipe verbatim.
       const SOUND_LABELS = {
-        Siren: { label: "🚨 Siren nearby", urgency: "danger" },
-        "Civil defense siren": { label: "🚨 Siren nearby", urgency: "danger" },
-        "Police car (siren)": {
-          label: "🚓 Police siren",
-          urgency: "danger",
-        },
-        "Ambulance (siren)": { label: "🚑 Ambulance siren", urgency: "danger" },
-        "Fire engine, fire truck (siren)": {
-          label: "🚒 Fire truck siren",
-          urgency: "danger",
-        },
-        "Fire alarm": { label: "🔥 Fire alarm", urgency: "danger" },
-        "Smoke detector, smoke alarm": {
-          label: "🔥 Smoke detector",
-          urgency: "danger",
-        },
-        Alarm: { label: "⚠️ Alarm sounding", urgency: "warning" },
-        "Alarm clock": { label: "⏰ Alarm clock", urgency: "info" },
-        "Car alarm": { label: "🚗 Car alarm", urgency: "warning" },
-        "Reversing beeps": {
-          label: "🚛 Vehicle reversing",
-          urgency: "warning",
-        },
-        Bark: { label: "🐕 Dog barking", urgency: "warning" },
-        "Dog": { label: "🐕 Dog nearby", urgency: "info" },
-        Howl: { label: "🐕 Dog howling", urgency: "info" },
-        Yip: { label: "🐕 Dog yipping", urgency: "info" },
-        Growling: { label: "🐕 Dog growling", urgency: "warning" },
-        Gunshot: { label: "⚠️ Loud bang", urgency: "danger" },
-        "Gunshot, gunfire": { label: "⚠️ Loud bang", urgency: "danger" },
-        Explosion: { label: "💥 Explosion", urgency: "danger" },
-        "Vehicle horn, car horn, honking": {
-          label: "📯 Car horn",
-          urgency: "danger",
-        },
-        "Air horn, truck horn": {
-          label: "📯 Truck horn",
-          urgency: "danger",
-        },
-        "Bicycle bell": { label: "🚲 Bicycle nearby", urgency: "warning" },
-        "Train horn": { label: "🚂 Train horn", urgency: "danger" },
-        "Train whistle": { label: "🚂 Train whistle", urgency: "warning" },
-        "Railroad car, train wagon": {
-          label: "🚂 Train nearby",
-          urgency: "warning",
-        },
-        "Traffic noise, roadway noise": {
-          label: "🚦 Traffic nearby",
-          urgency: "warning",
-        },
-        "Vehicle": { label: "🚗 Vehicle nearby", urgency: "warning" },
-        Speech: { label: "🗣️ Someone speaking", urgency: "info" },
-        "Male speech, man speaking": {
-          label: "🗣️ Someone speaking",
-          urgency: "info",
-        },
-        "Female speech, woman speaking": {
-          label: "🗣️ Someone speaking",
-          urgency: "info",
-        },
-        Conversation: { label: "🗣️ Conversation nearby", urgency: "info" },
-        Shout: { label: "❗ Someone shouting", urgency: "warning" },
-        Screaming: { label: "❗ Screaming nearby", urgency: "warning" },
-        Music: { label: "🎵 Music playing", urgency: "info" },
-        Crying: { label: "😢 Crying nearby", urgency: "info" },
-        "Baby cry, infant cry": { label: "👶 Baby crying", urgency: "info" },
-        Laughter: { label: "😄 Laughter nearby", urgency: "info" },
-        Crowd: { label: "👥 Crowd nearby", urgency: "info" },
-        Applause: { label: "👏 Applause", urgency: "info" },
-        Rain: { label: "🌧️ Rain", urgency: "info" },
-        "Rain on surface": { label: "🌧️ Rain", urgency: "info" },
-        Thunder: { label: "⛈️ Thunder", urgency: "warning" },
-        Thunderstorm: { label: "⛈️ Thunderstorm", urgency: "warning" },
-        "Door": { label: "🚪 Door", urgency: "info" },
-        Knock: { label: "🚪 Knocking", urgency: "info" },
-        Doorbell: { label: "🔔 Doorbell", urgency: "info" },
-        Telephone: { label: "☎️ Phone ringing", urgency: "info" },
-        "Telephone bell ringing": {
-          label: "☎️ Phone ringing",
-          urgency: "info",
-        },
-        "Ringtone": { label: "📱 Ringtone", urgency: "info" },
+        // ── Sirens (all roll up to one alert) ──
+        Siren: "siren",
+        "Civil defense siren": "siren",
+        "Police car (siren)": "siren",
+        "Ambulance (siren)": "siren",
+        "Fire engine, fire truck (siren)": "siren",
+        "Emergency vehicle": "siren",
+        // ── Fire / smoke alarms ──
+        "Fire alarm": "fire_alarm",
+        "Smoke detector, smoke alarm": "fire_alarm",
+        // ── General alarms / beepers ──
+        Alarm: "alarm",
+        Buzzer: "alarm",
+        "Beep, bleep": "alarm",
+        // ── Car/truck/train horns (separate so the spoken text is specific) ──
+        "Vehicle horn, car horn, honking": "car_horn",
+        Toot: "car_horn",
+        "Air horn, truck horn": "truck_horn",
+        Foghorn: "truck_horn",
+        "Train horn": "train_horn",
+        "Train whistle": "train",
+        // ── Reversing beeps ──
+        "Reversing beeps": "reversing",
+        // ── Bangs (gunshot, explosion grouped for safety) ──
+        Gunshot: "gunshot",
+        "Gunshot, gunfire": "gunshot",
+        "Machine gun": "gunshot",
+        Fusillade: "gunshot",
+        "Cap gun": "gunshot",
+        Fireworks: "gunshot",
+        Firecracker: "gunshot",
+        Explosion: "explosion",
+        Boom: "explosion",
+        Eruption: "explosion",
+        // ── Shouting / screaming ──
+        Shout: "shouting",
+        Yell: "shouting",
+        Screaming: "shouting",
+        "Battle cry": "shouting",
+        "Children shouting": "shouting",
+        // ── Dog (warning level) ──
+        Bark: "dog_warning",
+        Howl: "dog_warning",
+        Growling: "dog_warning",
+        "Bow-wow": "dog_warning",
+        // ── Dog (info level) ──
+        Dog: "dog_info",
+        Yip: "dog_info",
+        "Whimper (dog)": "dog_info",
+        // ── Cat ──
+        Cat: "cat",
+        Meow: "cat",
+        Hiss: "cat",
+        Purr: "cat",
+        Caterwaul: "cat",
+        // ── Speech ──
+        Speech: "speech",
+        "Male speech, man speaking": "speech",
+        "Female speech, woman speaking": "speech",
+        "Child speech, kid speaking": "speech",
+        "Narration, monologue": "speech",
+        Whispering: "speech",
+        // ── Conversation ──
+        Conversation: "conversation",
+        Chatter: "conversation",
+        // ── Crowd / public-space ambience ──
+        Crowd: "crowd",
+        "Hubbub, speech noise, speech babble": "crowd",
+        Cheering: "crowd",
+        "Children playing": "crowd",
+        Booing: "crowd",
+        // ── Laughter / crying ──
+        Laughter: "laughter",
+        "Baby laughter": "laughter",
+        Giggle: "laughter",
+        Snicker: "laughter",
+        "Belly laugh": "laughter",
+        "Chuckle, chortle": "laughter",
+        "Crying, sobbing": "crying",
+        "Wail, moan": "crying",
+        "Baby cry, infant cry": "baby_cry",
+        Applause: "applause",
+        Clapping: "applause",
+        // ── Music (every subgenre, every instrument, vocal music) ──
+        Music: "music",
+        "Musical instrument": "music",
+        "Background music": "music",
+        "Theme music": "music",
+        "Jingle (music)": "music",
+        "Soundtrack music": "music",
+        "Christmas music": "music",
+        "Dance music": "music",
+        "Wedding music": "music",
+        "Happy music": "music",
+        "Sad music": "music",
+        "Tender music": "music",
+        "Exciting music": "music",
+        "Angry music": "music",
+        "Scary music": "music",
+        "Funny music": "music",
+        Song: "music",
+        Singing: "music",
+        Choir: "music",
+        Yodeling: "music",
+        Chant: "music",
+        Mantra: "music",
+        "Child singing": "music",
+        "Synthetic singing": "music",
+        "Vocal music": "music",
+        "A capella": "music",
+        Rapping: "music",
+        Humming: "music",
+        Whistling: "music",
+        Beatboxing: "music",
+        // genres
+        "Pop music": "music",
+        "Hip hop music": "music",
+        "Rock music": "music",
+        "Heavy metal": "music",
+        "Punk rock": "music",
+        Grunge: "music",
+        "Progressive rock": "music",
+        "Rock and roll": "music",
+        "Psychedelic rock": "music",
+        "Rhythm and blues": "music",
+        "Soul music": "music",
+        Reggae: "music",
+        Country: "music",
+        "Swing music": "music",
+        Bluegrass: "music",
+        Funk: "music",
+        "Folk music": "music",
+        "Middle Eastern music": "music",
+        Jazz: "music",
+        Disco: "music",
+        "Classical music": "music",
+        Opera: "music",
+        "Electronic music": "music",
+        "House music": "music",
+        Techno: "music",
+        Dubstep: "music",
+        "Drum and bass": "music",
+        Electronica: "music",
+        "Electronic dance music": "music",
+        "Ambient music": "music",
+        "Trance music": "music",
+        "Music of Latin America": "music",
+        "Salsa music": "music",
+        Flamenco: "music",
+        Blues: "music",
+        "Music for children": "music",
+        "New-age music": "music",
+        "Music of Africa": "music",
+        Afrobeat: "music",
+        "Christian music": "music",
+        "Gospel music": "music",
+        "Music of Asia": "music",
+        "Carnatic music": "music",
+        "Music of Bollywood": "music",
+        Ska: "music",
+        "Traditional music": "music",
+        "Independent music": "music",
+        Lullaby: "music",
+        "Video game music": "music",
+        // plucked / string
+        "Plucked string instrument": "music",
+        Guitar: "music",
+        "Electric guitar": "music",
+        "Acoustic guitar": "music",
+        "Steel guitar, slide guitar": "music",
+        "Tapping (guitar technique)": "music",
+        Strum: "music",
+        Banjo: "music",
+        Sitar: "music",
+        Mandolin: "music",
+        Zither: "music",
+        Ukulele: "music",
+        "Bass guitar": "music",
+        // keyboard
+        "Keyboard (musical)": "music",
+        Piano: "music",
+        "Electric piano": "music",
+        Organ: "music",
+        "Electronic organ": "music",
+        "Hammond organ": "music",
+        Synthesizer: "music",
+        Sampler: "music",
+        Harpsichord: "music",
+        // percussion
+        Percussion: "music",
+        "Drum kit": "music",
+        "Drum machine": "music",
+        Drum: "music",
+        "Snare drum": "music",
+        Rimshot: "music",
+        "Drum roll": "music",
+        "Bass drum": "music",
+        Timpani: "music",
+        Tabla: "music",
+        Cymbal: "music",
+        "Hi-hat": "music",
+        "Wood block": "music",
+        Tambourine: "music",
+        "Rattle (instrument)": "music",
+        Maraca: "music",
+        Gong: "music",
+        "Tubular bells": "music",
+        "Mallet percussion": "music",
+        "Marimba, xylophone": "music",
+        Glockenspiel: "music",
+        Vibraphone: "music",
+        Steelpan: "music",
+        // orchestral
+        Orchestra: "music",
+        "Brass instrument": "music",
+        "French horn": "music",
+        Trumpet: "music",
+        Trombone: "music",
+        "Bowed string instrument": "music",
+        "String section": "music",
+        "Violin, fiddle": "music",
+        Pizzicato: "music",
+        Cello: "music",
+        "Double bass": "music",
+        "Wind instrument, woodwind instrument": "music",
+        Flute: "music",
+        Saxophone: "music",
+        Clarinet: "music",
+        Harp: "music",
+        // misc instruments
+        Harmonica: "music",
+        Accordion: "music",
+        Bagpipes: "music",
+        Didgeridoo: "music",
+        Shofar: "music",
+        Theremin: "music",
+        "Singing bowl": "music",
+        // ── Doors / knocking ──
+        Knock: "knock",
+        Slam: "knock",
+        "Thump, thud": "knock",
+        Bang: "knock",
+        Door: "door",
+        "Sliding door": "door",
+        "Cupboard open or close": "door",
+        "Drawer open or close": "door",
+        Doorbell: "doorbell",
+        "Ding-dong": "doorbell",
+        // ── Phone ──
+        Telephone: "phone",
+        "Telephone bell ringing": "phone",
+        Ringtone: "phone",
+        "Telephone dialing, DTMF": "phone",
+        "Dial tone": "phone",
+        // ── Bicycle ──
+        "Bicycle bell": "bicycle_bell",
+        // ── Vehicles ──
+        Vehicle: "vehicle",
+        "Motor vehicle (road)": "vehicle",
+        Car: "vehicle",
+        Truck: "vehicle",
+        Bus: "vehicle",
+        Motorcycle: "vehicle",
+        "Engine starting": "vehicle",
+        "Engine idling": "vehicle",
+        "Accelerating, revving, vroom": "vehicle",
+        Skidding: "vehicle",
+        "Tire squeal": "vehicle",
+        "Car passing by": "vehicle",
+        "Car alarm": "car_alarm",
+        // ── Trains ──
+        Train: "train",
+        "Railroad car, train wagon": "train",
+        "Train wheels squealing": "train",
+        "Subway, metro, underground": "train",
+        "Rail transport": "train",
+        // ── Traffic ──
+        "Traffic noise, roadway noise": "traffic",
+        // ── Weather ──
+        Rain: "rain",
+        "Rain on surface": "rain",
+        Raindrop: "rain",
+        Thunder: "thunder",
+        Thunderstorm: "thunder",
+        // ── Misc ──
+        "Alarm clock": "alarm_clock",
       };
 
       async function loadAudioClassifier() {
@@ -2143,8 +2395,11 @@
             baseOptions: {
               modelAssetPath: CONFIG.MEDIAPIPE_MODEL_URL,
             },
-            maxResults: 5,
-            scoreThreshold: CONFIG.AUDIO_SCORE_THRESHOLD,
+            // Pull a wider tail so bucket-summing can combine related
+            // subclasses (music genres, knock/slam/bang, etc.). Threshold
+            // is enforced on the bucket sum, not individual classes.
+            maxResults: 25,
+            scoreThreshold: 0.02,
           });
           console.log("MediaPipe audio classifier ready");
           if (badge) badge.textContent = "AI + Sound Active";
@@ -2431,27 +2686,58 @@
           debugLogLine(`[${dt}ms] ${top3}`, "dim");
         } else {
           debugLogLine(`[${dt}ms] empty categories`, "warn");
+          return;
         }
+
+        // Sum scores per bucket so subgenres/aliases reinforce each other.
+        const bucketSum = {};
+        const bucketTop = {}; // bestClass per bucket for debug
         for (const c of cats) {
-          if (c.score < CONFIG.AUDIO_SCORE_THRESHOLD) continue;
           const name = c.categoryName || c.displayName;
-          const mapping = SOUND_LABELS[name];
-          if (mapping) {
-            debugLogLine(
-              `→ MATCH: ${name} (${c.score.toFixed(2)}) → ${mapping.label}`,
-              "ok",
-            );
-            handleSoundLabel(mapping.label, mapping.urgency);
-            return;
+          const bucket = SOUND_LABELS[name];
+          if (!bucket) continue;
+          bucketSum[bucket] = (bucketSum[bucket] || 0) + c.score;
+          if (!bucketTop[bucket] || c.score > bucketTop[bucket].score) {
+            bucketTop[bucket] = { name, score: c.score };
           }
         }
+        if (!Object.keys(bucketSum).length) return;
+
+        // Pick winner: higher urgency wins ties; otherwise highest summed score.
+        const urgencyRank = { danger: 3, warning: 2, info: 1 };
+        let winner = null,
+          winnerRank = -1,
+          winnerScore = -1;
+        for (const [bucket, sum] of Object.entries(bucketSum)) {
+          if (sum < CONFIG.AUDIO_SCORE_THRESHOLD) continue;
+          const meta = SOUND_BUCKETS[bucket];
+          if (!meta) continue;
+          const rank = urgencyRank[meta.urgency] || 0;
+          if (
+            rank > winnerRank ||
+            (rank === winnerRank && sum > winnerScore)
+          ) {
+            winner = bucket;
+            winnerRank = rank;
+            winnerScore = sum;
+          }
+        }
+        if (!winner) return;
+
+        const meta = SOUND_BUCKETS[winner];
+        const top = bucketTop[winner];
+        debugLogLine(
+          `→ MATCH: ${winner} (sum=${winnerScore.toFixed(2)}, top=${top.name}@${top.score.toFixed(2)}) → ${meta.label}`,
+          "ok",
+        );
+        handleSoundLabel(meta.label, meta.urgency);
       }
 
       // Honest fallback: no category claims, just a loud-sound gate.
       function runAmbientGate(rmsDb) {
         if (_ambientFloorDb === null) return; // still calibrating
         if (rmsDb > _ambientFloorDb + CONFIG.AUDIO_AMBIENT_GATE_DB) {
-          handleSoundLabel("🔊 Loud sound nearby", "warning");
+          handleSoundLabel("Loud sound nearby", "warning");
         }
       }
 
