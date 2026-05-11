@@ -564,6 +564,11 @@
 
         // Caption
         CAPTION_HIDE_DELAY: 5000,      // hide caption box after 5s of silence
+
+        // Deepgram (Safari/iOS fallback for live captions)
+        // Web Speech API does not work in Safari or any iOS browser.
+        // Get a free API key at https://console.deepgram.com then paste it below.
+        DEEPGRAM_API_KEY: 'b926214f10e3faf98043eee42e01bb93d190a23e',
     };
     
     // ========== STATE ==========
@@ -614,6 +619,11 @@
         captionRecognition: null,
         captionHideTimer: null,
         captionFinalText: '',
+
+        // ── Deepgram (Safari fallback) ──
+        deepgramSocket: null,
+        deepgramStream: null,
+        deepgramRecorder: null,
     };
     
     // ========== AUDIO ==========
@@ -911,7 +921,23 @@
         return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
+    // ── Safari/iOS detection ──
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) ||
+                     (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream);
+    const hasWebSpeech = !!(window.SpeechRecognition || window.webkitSpeechRecognition) && !isSafari;
+
     function toggleCaptions() {
+        if (hasWebSpeech) {
+            // Chrome / Edge — use Web Speech API (free, on-device)
+            toggleCaptionsWebSpeech();
+        } else {
+            // Safari / iOS — use Deepgram over WebSocket
+            toggleCaptionsDeepgram();
+        }
+    }
+
+    // ── Web Speech API captions (Chrome/Edge) ──
+    function toggleCaptionsWebSpeech() {
         if (!state.captionRecognition) {
             const ok = initCaptionRecognition();
             if (!ok) { speak('Captions not supported on this device.', true); return; }
@@ -925,8 +951,6 @@
         if (state.captionEnabled) {
             state.captionFinalText = '';
             try {
-                // Caption recognition uses the same microphone as voice commands.
-                // If voice command recognition is active, stop it first to avoid conflicts.
                 if (state.isListening) stopListening();
                 state.captionRecognition.start();
             } catch (e) {
@@ -938,6 +962,101 @@
             hideCaption();
             speak('Live captions off.', true);
         }
+    }
+
+    // ── Deepgram captions (Safari/iOS) ──
+    function toggleCaptionsDeepgram() {
+        state.captionEnabled = !state.captionEnabled;
+        const btn = document.getElementById('btnCC');
+        btn.classList.toggle('on', state.captionEnabled);
+        btn.setAttribute('aria-pressed', state.captionEnabled ? 'true' : 'false');
+
+        if (state.captionEnabled) {
+            startDeepgramCaptions();
+        } else {
+            stopDeepgramCaptions();
+        }
+    }
+
+    async function startDeepgramCaptions() {
+        if (!CONFIG.DEEPGRAM_API_KEY || CONFIG.DEEPGRAM_API_KEY === 'YOUR_DEEPGRAM_API_KEY_HERE') {
+            speak('Deepgram API key not set. Captions unavailable in Safari.', true);
+            state.captionEnabled = false;
+            const btn = document.getElementById('btnCC');
+            btn.classList.remove('on');
+            btn.setAttribute('aria-pressed', 'false');
+            return;
+        }
+
+        try {
+            // Get microphone access
+            state.deepgramStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (e) {
+            speak('Microphone permission denied.', true);
+            state.captionEnabled = false;
+            document.getElementById('btnCC').classList.remove('on');
+            return;
+        }
+
+        // Open Deepgram WebSocket
+        const url = 'wss://api.deepgram.com/v1/listen?encoding=webm-opus&sample_rate=48000&language=en-US&interim_results=true&punctuate=true';
+        state.deepgramSocket = new WebSocket(url, ['token', CONFIG.DEEPGRAM_API_KEY]);
+
+        state.deepgramSocket.onopen = () => {
+            console.log('Deepgram connected');
+            speak('Live captions on.', true);
+            state.captionFinalText = '';
+
+            // Stream mic audio via MediaRecorder in small chunks
+            state.deepgramRecorder = new MediaRecorder(state.deepgramStream, { mimeType: 'audio/webm;codecs=opus' });
+            state.deepgramRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0 && state.deepgramSocket?.readyState === WebSocket.OPEN) {
+                    state.deepgramSocket.send(e.data);
+                }
+            };
+            state.deepgramRecorder.start(250); // send chunks every 250ms
+        };
+
+        state.deepgramSocket.onmessage = (e) => {
+            try {
+                const data = JSON.parse(e.data);
+                const transcript = data?.channel?.alternatives?.[0]?.transcript;
+                if (!transcript) return;
+                const isFinal = data.is_final;
+                if (isFinal) {
+                    state.captionFinalText = (state.captionFinalText + transcript + ' ').slice(-300);
+                    showCaption(state.captionFinalText, '');
+                } else {
+                    showCaption(state.captionFinalText, transcript);
+                }
+            } catch (err) {
+                console.warn('Deepgram message parse error:', err);
+            }
+        };
+
+        state.deepgramSocket.onerror = (e) => {
+            console.warn('Deepgram WebSocket error:', e);
+        };
+
+        state.deepgramSocket.onclose = (e) => {
+            console.log('Deepgram closed, code:', e.code);
+            // Auto-reconnect if captions still enabled and it wasn't a clean close
+            if (state.captionEnabled && e.code !== 1000) {
+                console.log('Deepgram reconnecting...');
+                setTimeout(startDeepgramCaptions, 1000);
+            }
+        };
+    }
+
+    function stopDeepgramCaptions() {
+        try { state.deepgramRecorder?.stop(); } catch (e) {}
+        try { state.deepgramSocket?.close(1000); } catch (e) {}
+        try { state.deepgramStream?.getTracks().forEach(t => t.stop()); } catch (e) {}
+        state.deepgramRecorder = null;
+        state.deepgramSocket = null;
+        state.deepgramStream = null;
+        hideCaption();
+        speak('Live captions off.', true);
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -2109,6 +2228,10 @@
             if (state.xrSession) { state.xrSession.end().catch(() => {}); state.xrSession = null; state.xrDepthActive = false; }
             // Pause sound detection when hidden
             if (state.yamnetInterval) { clearInterval(state.yamnetInterval); state.yamnetInterval = null; }
+            // Pause Deepgram when hidden (saves API usage)
+            if (state.deepgramRecorder?.state === 'recording') {
+                try { state.deepgramRecorder.stop(); } catch (e) {}
+            }
         } else if (state.model && state.video?.srcObject) {
             state.isRunning = true;
             protectionLoop();
@@ -2117,6 +2240,10 @@
                 state.yamnetInterval = setInterval(() => {
                     if (state.isRunning && state.yamnetEnabled) runYAMNet();
                 }, CONFIG.YAMNET_INTERVAL);
+            }
+            // Restart Deepgram if captions were on
+            if (state.captionEnabled && !hasWebSpeech && !state.deepgramSocket) {
+                startDeepgramCaptions();
             }
         }
     });
