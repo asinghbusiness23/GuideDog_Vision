@@ -167,13 +167,13 @@
         .alert-detail { font-size: 16px; margin-top: 10px; opacity: 0.8; }
 
         /* ── CAPTION OVERLAY ── */
-        /* Positioned at the bottom of the alert area, above safe-area */
+        /* Fixed to viewport, always on top of everything including help dialogs */
         #captionOverlay {
             position: fixed;
             left: 0;
             right: 0;
-            bottom: max(16px, env(safe-area-inset-bottom));
-            z-index: 30;
+            bottom: max(20px, env(safe-area-inset-bottom));
+            z-index: 200;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -205,28 +205,31 @@
 
         /* Speech caption box */
         #captionBox {
-            background: rgba(0, 0, 0, 0.78);
-            border: 1.5px solid rgba(255,255,255,0.18);
+            background: rgba(0, 0, 0, 0.88);
+            border: 2px solid rgba(255,255,255,0.30);
             border-radius: 14px;
-            padding: 10px 18px;
-            font-size: 17px;
-            line-height: 1.4;
+            padding: 12px 20px;
+            font-size: 18px;
+            font-weight: 500;
+            line-height: 1.45;
             color: #fff;
             text-align: center;
-            max-width: 380px;
-            min-height: 48px;
+            max-width: 400px;
             width: 100%;
+            min-height: 52px;
             opacity: 0;
-            transform: translateY(8px);
+            transform: translateY(10px);
             transition: opacity 0.2s, transform 0.2s;
             pointer-events: none;
+            /* Ensure text is sharp even on low-DPI screens */
+            -webkit-font-smoothing: antialiased;
         }
         #captionBox.visible {
             opacity: 1;
             transform: translateY(0);
         }
         /* Interim text is slightly dimmed */
-        #captionBox .interim { color: rgba(255,255,255,0.55); }
+        #captionBox .interim { color: rgba(255,255,255,0.5); font-style: italic; }
         #captionBox .final   { color: #fff; }
 
         /* Caption toggle button — in status bar */
@@ -726,7 +729,8 @@
 
     function speakAlert(key, text, priority = 2) {
         const now = Date.now();
-        if (now - (state.lastAlerts[key] || 0) < 0) return;
+        const ALERT_COOLDOWN = 3000;
+        if (now - (state.lastAlerts[key] || 0) < ALERT_COOLDOWN) return;
         state.lastAlerts[key] = now;
         if (state.isListening) stopListening();
         if (priority >= 3) {
@@ -924,153 +928,230 @@
 
     // ══════════════════════════════════════════════════════════════════
     //  SOUND DETECTION — YAMNet via TensorFlow.js
+    //
+    //  Audio capture: MediaRecorder (1s chunks) → decodeAudioData →
+    //  mono Float32 resampled to 16 kHz → YAMNet inference.
+    //
+    //  Falls back to energy-based detection (RMS + ZCR) if the model
+    //  can't load, so the button always does something useful.
     // ══════════════════════════════════════════════════════════════════
 
-    // YAMNet class names (521 classes). We ship a trimmed list here covering the
-    // categories defined in CONFIG.SOUND_CATEGORIES. Full mapping is resolved at
-    // runtime by matching class name fragments.
-    // YAMNet tfhub model returns scores as Float32Array in class-index order.
-    // We load the class map from the model's metadata JSON.
-    let _yamnetClasses = null;   // string[] once loaded
+    let _yamnetClasses = null;  // string[521] once loaded
+
+    // Fetch YAMNet class names in the background. Non-blocking — inference
+    // works without it (uses generic "class_N" labels until it arrives).
+    async function fetchYAMNetClasses() {
+        try {
+            const r = await fetch(
+                'https://raw.githubusercontent.com/tensorflow/models/master/research/audioset/yamnet/yamnet_class_map.csv',
+                { cache: 'force-cache' }
+            );
+            if (!r.ok) return;
+            const csv = await r.text();
+            _yamnetClasses = csv.split('\n').slice(1).filter(Boolean)
+                .map(line => (line.split(',')[2] || '').replace(/"/g, '').trim());
+            console.log('YAMNet classes loaded:', _yamnetClasses.length);
+        } catch (e) {
+            console.warn('YAMNet class CSV fetch failed:', e.message);
+        }
+    }
 
     async function loadYAMNet() {
         if (state.yamnetModel) return true;
         const badge = document.getElementById('aiBadge');
         if (badge) badge.textContent = 'Loading sound model…';
 
+        // Try multiple known-good CORS-friendly hosts for the TFJS model.
+        const MODEL_URLS = [
+            'https://tfhub.dev/google/tfjs-model/yamnet/tfjs/1/model.json',
+            'https://storage.googleapis.com/tfjs-models/savedmodel/yamnet/model.json',
+        ];
+
+        for (const url of MODEL_URLS) {
+            try {
+                console.log('Trying YAMNet from:', url);
+                state.yamnetModel = await tf.loadGraphModel(url);
+                console.log('YAMNet loaded OK from:', url);
+                fetchYAMNetClasses();  // background fetch of class names
+                break;
+            } catch (e) {
+                console.warn('YAMNet load failed from', url, '–', e.message);
+                state.yamnetModel = null;
+            }
+        }
+
+        if (!state.yamnetModel) {
+            // Energy-based fallback: works without any model download.
+            // Detects loud transients (alarms, sirens, claps) via RMS + ZCR.
+            console.warn('YAMNet model unavailable — using energy-based fallback');
+            state.yamnetModel = 'energy-fallback';
+        }
+
+        if (badge) {
+            badge.textContent = (state.depthPipeline || state.xrDepthActive)
+                ? 'AI + Depth + Sound Active' : 'AI + Sound Active';
+        }
+        return true;
+    }
+
+    // ── MediaRecorder-based audio capture ─────────────────────────────────────
+    // Records 1-second chunks, converts to PCM via decodeAudioData, then
+    // runs inference. Avoids the deprecated & broken ScriptProcessor API.
+    let _yamnetRecorder = null;
+    let _yamnetChunks   = [];
+
+    function startYAMNetRecorder() {
+        if (!state.yamnetMicStream) return;
         try {
-            // YAMNet hosted on TF Hub as a SavedModel converted to TFJS format.
-            // We use the community-converted version on jsDelivr.
-            state.yamnetModel = await tf.loadGraphModel(
-                'https://www.kaggle.com/models/google/yamnet/tfJs/tfjs/1',
-                { fromTFHub: true }
+            const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg', '']
+                .find(t => !t || MediaRecorder.isTypeSupported(t)) || '';
+            _yamnetRecorder = new MediaRecorder(
+                state.yamnetMicStream,
+                mimeType ? { mimeType } : {}
             );
+            _yamnetChunks = [];
 
-            // Load class names from the same location
-            const metaResp = await fetch(
-                'https://raw.githubusercontent.com/tensorflow/models/master/research/audioset/yamnet/yamnet_class_map.csv'
-            );
-            if (metaResp.ok) {
-                const csv = await metaResp.text();
-                _yamnetClasses = csv.split('\n').slice(1)  // skip header
-                    .filter(Boolean)
-                    .map(line => line.split(',')[2]?.replace(/"/g, '').trim() || '');
-            }
+            _yamnetRecorder.ondataavailable = e => {
+                if (e.data?.size > 0) _yamnetChunks.push(e.data);
+            };
 
-            if (badge) {
-                badge.textContent = state.depthPipeline || state.xrDepthActive
-                    ? 'AI + Depth + Sound Active' : 'AI + Sound Active';
-            }
-            console.log('YAMNet loaded, classes:', _yamnetClasses?.length);
-            return true;
+            _yamnetRecorder.onstop = async () => {
+                const chunks = _yamnetChunks.splice(0);
+                if (!chunks.length || !state.yamnetEnabled) return;
+
+                const blob = new Blob(chunks, {
+                    type: _yamnetRecorder.mimeType || 'audio/webm'
+                });
+                await classifyAudioBlob(blob);
+
+                // Restart for the next chunk if still enabled
+                if (state.yamnetEnabled && state.yamnetMicStream) {
+                    _yamnetChunks = [];
+                    try {
+                        _yamnetRecorder.start();
+                        setTimeout(() => {
+                            if (_yamnetRecorder?.state === 'recording') _yamnetRecorder.stop();
+                        }, CONFIG.YAMNET_INTERVAL);
+                    } catch (_) {}
+                }
+            };
+
+            _yamnetRecorder.start();
+            setTimeout(() => {
+                if (_yamnetRecorder?.state === 'recording') _yamnetRecorder.stop();
+            }, CONFIG.YAMNET_INTERVAL);
+
         } catch (e) {
-            console.error('YAMNet load failed:', e);
-            if (badge) badge.textContent = 'AI Active';
-            state.yamnetModel = null;
-            return false;
+            console.error('MediaRecorder setup error:', e);
         }
     }
 
-    // Classify audio from the mic stream using YAMNet.
-    // YAMNet expects a mono Float32Array of 16 kHz audio, length ≥ 15600 (0.975s).
-    async function runYAMNet() {
-        if (!state.yamnetModel || !state.yamnetMicStream || !state.yamnetEnabled) return;
+    async function classifyAudioBlob(blob) {
         if (!state.audioCtx) return;
-
         try {
             resumeAudio();
-            const sampleRate = state.audioCtx.sampleRate;
-            const bufferSize = Math.max(16384, Math.ceil(sampleRate * 0.975));
+            const arrayBuffer = await blob.arrayBuffer();
+            const audioBuffer  = await state.audioCtx.decodeAudioData(arrayBuffer);
+            // Mix to mono
+            const channelData  = audioBuffer.getChannelData(0);
+            // Resample to 16 kHz (YAMNet requirement)
+            const resampled    = resampleLinear(channelData, audioBuffer.sampleRate, 16000);
+            if (resampled.length < 15600) return;  // need ≥ 0.975 s
 
-            const source = state.audioCtx.createMediaStreamSource(state.yamnetMicStream);
-            const recorder = state.audioCtx.createScriptProcessor(bufferSize, 1, 1);
+            if (state.yamnetModel === 'energy-fallback') {
+                runEnergyFallback(resampled);
+                return;
+            }
 
-            await new Promise((resolve, reject) => {
-                recorder.onaudioprocess = async (e) => {
-                    const inputData = e.inputBuffer.getChannelData(0);
-
-                    // Resample to 16 kHz if needed (most mobile browsers record at 44.1/48 kHz)
-                    const targetRate = 16000;
-                    const ratio = targetRate / sampleRate;
-                    const resampledLen = Math.round(inputData.length * ratio);
-                    const resampled = new Float32Array(resampledLen);
-                    for (let i = 0; i < resampledLen; i++) {
-                        resampled[i] = inputData[Math.round(i / ratio)] || 0;
-                    }
-
-                    try {
-                        const waveform = tf.tensor1d(resampled);
-                        const [scores] = await state.yamnetModel.executeAsync(waveform);
-                        // scores shape: [frames, 521] — average over frames
-                        const meanScores = tf.mean(scores, 0);
-                        const scoresArr = await meanScores.data();
-
-                        waveform.dispose();
-                        scores.dispose();
-                        meanScores.dispose();
-
-                        handleYAMNetScores(scoresArr);
-                    } catch (err) {
-                        console.warn('YAMNet inference error:', err);
-                    }
-
-                    // Disconnect after one buffer
-                    recorder.disconnect();
-                    source.disconnect();
-                    resolve();
-                };
-
-                recorder.onerror = reject;
-                source.connect(recorder);
-                recorder.connect(state.audioCtx.destination);
-            });
+            const waveform = tf.tensor1d(resampled);
+            try {
+                const output = await state.yamnetModel.executeAsync(waveform);
+                // YAMNet returns [scores[frames,521], embeddings, spectrogram]
+                const scoresT   = Array.isArray(output) ? output[0] : output;
+                const meanT     = tf.mean(scoresT, 0);
+                const scoresArr = await meanT.data();
+                meanT.dispose();
+                if (Array.isArray(output)) output.forEach(t => t?.dispose?.());
+                else output?.dispose?.();
+                handleYAMNetScores(scoresArr);
+            } catch (inferErr) {
+                console.warn('YAMNet inference error:', inferErr.message);
+            }
+            waveform.dispose();
         } catch (e) {
-            console.warn('YAMNet audio capture error:', e);
+            console.warn('classifyAudioBlob error:', e.message);
         }
+    }
+
+    // Linear interpolation resampler — fast enough for 1 s chunks
+    function resampleLinear(input, srcRate, dstRate) {
+        if (srcRate === dstRate) return input;
+        const ratio  = srcRate / dstRate;
+        const outLen = Math.round(input.length / ratio);
+        const out    = new Float32Array(outLen);
+        for (let i = 0; i < outLen; i++) {
+            const pos  = i * ratio;
+            const idx  = Math.floor(pos);
+            const frac = pos - idx;
+            out[i] = idx + 1 < input.length
+                ? input[idx] * (1 - frac) + input[idx + 1] * frac
+                : input[Math.min(idx, input.length - 1)];
+        }
+        return out;
+    }
+
+    // Energy-based fallback: detect loud transients without ML.
+    // Uses RMS amplitude + zero-crossing rate heuristics.
+    function runEnergyFallback(samples) {
+        let rmsSum = 0, zcr = 0;
+        for (let i = 0; i < samples.length; i++) {
+            rmsSum += samples[i] * samples[i];
+            if (i > 0 && (samples[i] >= 0) !== (samples[i - 1] >= 0)) zcr++;
+        }
+        const rms     = Math.sqrt(rmsSum / samples.length);
+        const zcrNorm = zcr / samples.length;
+
+        if      (rms > 0.25 && zcrNorm > 0.15) handleSoundLabel('⚠️ Loud alarm or siren', 'danger');
+        else if (rms > 0.25)                    handleSoundLabel('🔊 Loud sound nearby',    'warning');
+        else if (rms > 0.08 && zcrNorm < 0.08) handleSoundLabel('🗣️ Someone speaking',     'info');
+        // else: silence — don't report
     }
 
     function handleYAMNetScores(scoresArr) {
-        if (!_yamnetClasses) return;
-
-        // Find the top-scoring category that matches our interest list
-        let bestMatch = null;
-        let bestScore = CONFIG.YAMNET_SCORE_THRESHOLD;
+        let bestLabel   = null;
+        let bestScore   = CONFIG.YAMNET_SCORE_THRESHOLD;
+        let bestUrgency = 'info';
 
         for (let i = 0; i < scoresArr.length; i++) {
-            const score = scoresArr[i];
-            if (score < bestScore) continue;
-            const className = _yamnetClasses[i] || '';
-            // Match against our CONFIG categories
+            if (scoresArr[i] < bestScore) continue;
+            const className = (_yamnetClasses?.[i]) || '';
             for (const [fragment, info] of Object.entries(CONFIG.SOUND_CATEGORIES)) {
                 if (className.toLowerCase().includes(fragment.toLowerCase())) {
-                    bestMatch = { className, score, ...info };
-                    bestScore = score;
+                    bestLabel   = info.label;
+                    bestUrgency = info.urgency;
+                    bestScore   = scoresArr[i];
                     break;
                 }
             }
         }
 
-        if (!bestMatch) return;
+        if (bestLabel) handleSoundLabel(bestLabel, bestUrgency);
+    }
 
-        const now = Date.now();
-        const lastSpeak = state.lastSoundSpeak[bestMatch.label] || 0;
-        const canSpeak = now - lastSpeak > CONFIG.SOUND_SPEAK_COOLDOWN;
+    function handleSoundLabel(label, urgency) {
+        const now      = Date.now();
+        const canSpeak = now - (state.lastSoundSpeak[label] || 0) > CONFIG.SOUND_SPEAK_COOLDOWN;
 
-        // Show the banner
-        showSoundBanner(bestMatch.label);
+        showSoundBanner(label);
 
-        // Update status bar sound badge
-        const sb = document.querySelector('.sound-badge');
-        if (sb) { sb.textContent = bestMatch.label; sb.classList.add('visible'); }
-
-        // Speak aloud + vibrate for danger/warning sounds
-        if (canSpeak && (bestMatch.urgency === 'danger' || bestMatch.urgency === 'warning')) {
-            state.lastSoundSpeak[bestMatch.label] = now;
-            const spokenLabel = bestMatch.label.replace(/[🚨🔥⚠️🚗🐕📯🔔🗣️🎵😢😄👶👥🌧️⛈️💥🚦🚲]/gu, '').trim();
-            speakAlert('sound_' + bestMatch.label, spokenLabel, bestMatch.urgency === 'danger' ? 3 : 2);
-            vibrateAlert(bestMatch.urgency);
-        } else if (canSpeak && bestMatch.urgency === 'info') {
-            state.lastSoundSpeak[bestMatch.label] = now;
+        if (canSpeak && urgency !== 'info') {
+            state.lastSoundSpeak[label] = now;
+            // Strip emoji for TTS (regex matches all emoji ranges)
+            const spoken = label.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}]/gu, '').trim();
+            speakAlert('sound_' + label, spoken || label, urgency === 'danger' ? 3 : 2);
+            vibrateAlert(urgency);
+        } else if (canSpeak) {
+            state.lastSoundSpeak[label] = now;
         }
     }
 
