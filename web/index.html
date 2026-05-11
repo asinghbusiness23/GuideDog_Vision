@@ -568,7 +568,7 @@
         // Deepgram (Safari/iOS fallback for live captions)
         // Web Speech API does not work in Safari or any iOS browser.
         // Get a free API key at https://console.deepgram.com then paste it below.
-        DEEPGRAM_API_KEY: 'b926214f10e3faf98043eee42e01bb93d190a23e',
+        DEEPGRAM_API_KEY: 'YOUR_DEEPGRAM_API_KEY_HERE',
     };
     
     // ========== STATE ==========
@@ -872,11 +872,22 @@
                 console.warn('Caption recognition network error — will retry');
                 return;
             }
-            if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+            if (e.error === 'not-allowed') {
+                // Mic permission denied — nothing we can do
                 state.captionEnabled = false;
                 const btn = document.getElementById('btnCC');
                 if (btn) { btn.classList.remove('on'); btn.setAttribute('aria-pressed', 'false'); }
                 speak('Microphone permission denied. Please allow microphone access and try again.', true);
+                return;
+            }
+            if (e.error === 'service-not-allowed') {
+                // Safari: Siri disabled or speech recognition restricted by the OS.
+                // Fall back to Deepgram silently.
+                console.warn('Web Speech service-not-allowed — switching to Deepgram');
+                state.captionEnabled = false;
+                state.captionRecognition = null;
+                // Re-trigger via Deepgram path
+                toggleCaptionsDeepgram();
                 return;
             }
             console.warn('Caption recognition error:', e.error);
@@ -921,31 +932,29 @@
         return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
-    // ── Safari/iOS detection ──
-    // iOS Safari and all iOS browsers (even Chrome on iOS) use WebKit's broken
-    // SpeechRecognition — detect by platform, not by API presence.
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    const isSafariBrowser = isIOS || (
-        /^((?!chrome|android).)*safari/i.test(navigator.userAgent) &&
-        typeof navigator.userAgentData === 'undefined'  // Chrome 90+ has this; Safari doesn't
-    );
-    const hasWebSpeech = !!(window.SpeechRecognition || window.webkitSpeechRecognition) && !isSafariBrowser;
+    // ── Browser capability detection ──
+    const hasWebSpeech = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 
     function toggleCaptions() {
         if (hasWebSpeech) {
-            // Chrome / Edge — use Web Speech API (free, on-device)
+            // Web Speech API available (Chrome, Edge, Safari 14.1+) — try it first, free
             toggleCaptionsWebSpeech();
         } else {
-            // Safari / iOS — use Deepgram over WebSocket
+            // No Web Speech API at all — fall back to Deepgram
             toggleCaptionsDeepgram();
         }
     }
 
-    // ── Web Speech API captions (Chrome/Edge) ──
+    // ── Web Speech API captions (Chrome/Edge/Safari) ──
     function toggleCaptionsWebSpeech() {
         if (!state.captionRecognition) {
             const ok = initCaptionRecognition();
-            if (!ok) { speak('Captions not supported on this device.', true); return; }
+            if (!ok) {
+                // Web Speech API present but failed to init — fall back to Deepgram
+                console.warn('Web Speech init failed, falling back to Deepgram');
+                toggleCaptionsDeepgram();
+                return;
+            }
         }
 
         state.captionEnabled = !state.captionEnabled;
@@ -959,7 +968,14 @@
                 if (state.isListening) stopListening();
                 state.captionRecognition.start();
             } catch (e) {
-                console.warn('Caption start error:', e);
+                console.warn('Caption start error, falling back to Deepgram:', e);
+                // Reset and try Deepgram instead
+                state.captionEnabled = false;
+                btn.classList.remove('on');
+                btn.setAttribute('aria-pressed', 'false');
+                state.captionRecognition = null;
+                toggleCaptionsDeepgram();
+                return;
             }
             speak('Live captions on.', true);
         } else {
@@ -969,7 +985,7 @@
         }
     }
 
-    // ── Deepgram captions (Safari/iOS) ──
+    // ── Deepgram captions (fallback when Web Speech API unavailable or fails) ──
     function toggleCaptionsDeepgram() {
         state.captionEnabled = !state.captionEnabled;
         const btn = document.getElementById('btnCC');
