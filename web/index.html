@@ -273,6 +273,57 @@
         transform: translateY(0);
       }
 
+      /* Debug panel — enable with ?debug=1 or set localStorage.gd_debug=1 */
+      #debugPanel {
+        position: fixed;
+        top: 8px;
+        right: 8px;
+        max-width: 360px;
+        max-height: 70vh;
+        overflow-y: auto;
+        padding: 8px 10px;
+        background: rgba(0, 0, 0, 0.82);
+        color: #b8ffb8;
+        font: 11px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        border: 1px solid rgba(120, 255, 120, 0.3);
+        border-radius: 8px;
+        z-index: 9999;
+        pointer-events: auto;
+        white-space: pre-wrap;
+        display: none;
+      }
+      #debugPanel.on {
+        display: block;
+      }
+      #debugPanel .row {
+        margin: 0;
+      }
+      #debugPanel .ok {
+        color: #b8ffb8;
+      }
+      #debugPanel .warn {
+        color: #ffd66b;
+      }
+      #debugPanel .err {
+        color: #ff8b8b;
+      }
+      #debugPanel .dim {
+        color: #8fd28f;
+      }
+      #debugPanel hr {
+        border: 0;
+        border-top: 1px dashed rgba(120, 255, 120, 0.25);
+        margin: 4px 0;
+      }
+      #debugPanel .close {
+        position: absolute;
+        top: 2px;
+        right: 6px;
+        color: #b8ffb8;
+        cursor: pointer;
+        font-weight: bold;
+      }
+
       /* Speech caption box */
       #captionBox {
         background: rgba(0, 0, 0, 0.88);
@@ -1178,6 +1229,16 @@
       <div id="captionBox" role="status"></div>
     </div>
 
+    <!-- Debug panel — enable via ?debug=1 or localStorage.gd_debug=1 -->
+    <div id="debugPanel" aria-hidden="true">
+      <span class="close" onclick="this.parentElement.classList.remove('on')">×</span>
+      <div id="debugStatus"></div>
+      <hr />
+      <div id="debugMeter"></div>
+      <hr />
+      <div id="debugLog"></div>
+    </div>
+
     <!-- TensorFlow.js + COCO-SSD (used for object detection only).
          YAMNet sound classification was migrated to MediaPipe (see below);
          tfjs-backend-cpu is no longer required as a fallback. -->
@@ -1276,9 +1337,10 @@
 
         // Audio classifier (MediaPipe / YAMNet) tuning
         AUDIO_WINDOW_SECONDS: 0.975, // YAMNet expects ~0.975s windows
-        AUDIO_SCORE_THRESHOLD: 0.35, // min score for ML category announcement
+        AUDIO_SCORE_THRESHOLD: 0.25, // min score for ML category announcement
         AUDIO_CALIBRATION_MS: 1500, // sample ambient noise floor on enable
         AUDIO_AMBIENT_GATE_DB: 12, // dB above floor to trigger "loud sound"
+        AUDIO_CLASSIFY_GATE_DB: 3, // skip classify if RMS within this of floor
         MEDIAPIPE_MODEL_URL:
           "https://storage.googleapis.com/mediapipe-models/audio_classifier/yamnet/float32/1/yamnet.tflite",
         SOUND_BANNER_DURATION: 6000, // must be >= SOUND_SPEAK_COOLDOWN
@@ -1847,6 +1909,99 @@
       let _ambientCalibrationFrames = [];
       let _ambientCalibrationDoneAt = 0;
 
+      // ── Debug instrumentation ──
+      // Enable via ?debug=1, #debug, or localStorage.gd_debug=1.
+      const DEBUG_ON = (() => {
+        try {
+          const p = new URLSearchParams(location.search);
+          if (p.get("debug") === "1") return true;
+          if (location.hash.includes("debug")) return true;
+          if (localStorage.getItem("gd_debug") === "1") return true;
+        } catch (_) {}
+        return false;
+      })();
+      const _debugStats = {
+        status: {},
+        windows: 0,
+        gated: 0,
+        classified: 0,
+        announced: 0,
+        suppressed: 0,
+        firstClassifyMs: null,
+        lastRmsDb: null,
+        captureBackend: "—",
+        sampleRate: null,
+        windowSamples: null,
+        modelStatus: "—",
+        mpReady: false,
+      };
+      const _debugLogLines = [];
+
+      function debugSetStatus(key, value, cls) {
+        _debugStats.status[key] = { value, cls: cls || "ok" };
+        renderDebug();
+      }
+      function debugLogLine(text, cls) {
+        if (!DEBUG_ON) return;
+        const ts = new Date().toISOString().slice(11, 23);
+        _debugLogLines.unshift({ ts, text, cls: cls || "" });
+        while (_debugLogLines.length > 14) _debugLogLines.pop();
+        renderDebug();
+      }
+      let _debugRenderPending = false;
+      function renderDebug() {
+        if (!DEBUG_ON) return;
+        if (_debugRenderPending) return;
+        _debugRenderPending = true;
+        requestAnimationFrame(() => {
+          _debugRenderPending = false;
+          const panel = document.getElementById("debugPanel");
+          if (!panel) return;
+          panel.classList.add("on");
+          const status = document.getElementById("debugStatus");
+          const meter = document.getElementById("debugMeter");
+          const log = document.getElementById("debugLog");
+          if (status) {
+            const lines = [
+              `MP module: ${_debugStats.mpReady ? "loaded" : "—"}`,
+              `Model: ${_debugStats.modelStatus}`,
+              `Capture: ${_debugStats.captureBackend}`,
+              `Rate: ${_debugStats.sampleRate || "—"} Hz / window ${_debugStats.windowSamples || "—"}`,
+              `Windows: ${_debugStats.windows}  gated: ${_debugStats.gated}  classified: ${_debugStats.classified}`,
+              `Announced: ${_debugStats.announced}  suppressed: ${_debugStats.suppressed}`,
+              `First classify: ${_debugStats.firstClassifyMs != null ? _debugStats.firstClassifyMs + "ms" : "—"}`,
+            ];
+            status.innerHTML = lines.map((l) => `<div class="row">${l}</div>`).join("");
+          }
+          if (meter) {
+            const floor = _ambientFloorDb;
+            const rms = _debugStats.lastRmsDb;
+            const rmsTxt = rms == null ? "—" : rms.toFixed(1) + " dB";
+            const floorTxt = floor == null ? "calibrating…" : floor.toFixed(1) + " dB";
+            const above =
+              rms != null && floor != null
+                ? "+" + (rms - floor).toFixed(1) + " dB above floor"
+                : "";
+            meter.innerHTML =
+              `<div class="row">RMS:   <b>${rmsTxt}</b>  ${above}</div>` +
+              `<div class="row">Floor: ${floorTxt}</div>`;
+          }
+          if (log) {
+            log.innerHTML = _debugLogLines
+              .map(
+                (l) =>
+                  `<div class="row ${l.cls}"><span class="dim">${l.ts}</span> ${l.text}</div>`,
+              )
+              .join("");
+          }
+        });
+      }
+      if (DEBUG_ON) {
+        window.addEventListener("DOMContentLoaded", () => {
+          debugSetStatus("init", "debug on");
+        });
+      }
+
       // Exact YAMNet class names (from the AudioSet ontology used by the
       // TFLite model that MediaPipe ships) → friendly spoken label + urgency.
       // The model emits these strings verbatim in category.categoryName.
@@ -1939,6 +2094,8 @@
         if (_mpClassifier) return _mpClassifier;
         const badge = document.getElementById("aiBadge");
         if (badge) badge.textContent = "Loading sound model…";
+        _debugStats.modelStatus = "loading…";
+        debugLogLine("loadAudioClassifier: waiting for MP module", "dim");
 
         // Wait for the MediaPipe ES module dispatched at page load.
         if (!window.__mpAudio) {
@@ -1965,15 +2122,20 @@
           });
         }
 
+        _debugStats.mpReady = !!window.__mpAudio;
         if (!window.__mpAudio) {
           console.warn(
             "MediaPipe audio module not available — using ambient-only mode",
           );
           if (badge) badge.textContent = "Sound: ambient only";
+          _debugStats.modelStatus = "ESM failed → ambient-only";
+          debugLogLine("MediaPipe ESM failed to import", "err");
+          renderDebug();
           return null;
         }
 
         try {
+          const t0 = performance.now();
           const { AudioClassifier, FilesetResolver } = window.__mpAudio;
           const wasmBase = `${window.__mpAudioBase}/wasm`;
           const fileset = await FilesetResolver.forAudioTasks(wasmBase);
@@ -1986,11 +2148,18 @@
           });
           console.log("MediaPipe audio classifier ready");
           if (badge) badge.textContent = "AI + Sound Active";
+          const dt = Math.round(performance.now() - t0);
+          _debugStats.modelStatus = `ready (${dt}ms)`;
+          debugLogLine(`MediaPipe ready in ${dt}ms`, "ok");
+          renderDebug();
           return _mpClassifier;
         } catch (e) {
           console.error("MediaPipe classifier init failed:", e.message || e);
           _mpClassifier = null;
           if (badge) badge.textContent = "Sound: ambient only";
+          _debugStats.modelStatus = "init failed → ambient-only";
+          debugLogLine(`MP init failed: ${e.message || e}`, "err");
+          renderDebug();
           return null;
         }
       }
@@ -2072,6 +2241,14 @@
             };
             _captureSource.connect(_captureNode);
             _captureNode.connect(_captureSilentGain);
+            _debugStats.captureBackend = "AudioWorklet";
+            _debugStats.sampleRate = sampleRate;
+            _debugStats.windowSamples = windowSamples;
+            debugLogLine(
+              `capture: AudioWorklet @ ${sampleRate}Hz / ${windowSamples} samples`,
+              "ok",
+            );
+            renderDebug();
             console.log(
               "Audio capture via AudioWorklet, rate:",
               sampleRate,
@@ -2083,6 +2260,10 @@
             console.warn(
               "AudioWorklet init failed, falling back to ScriptProcessor:",
               e.message || e,
+            );
+            debugLogLine(
+              `AudioWorklet failed: ${e.message || e}; falling back`,
+              "warn",
             );
             try {
               _captureNode?.disconnect();
@@ -2115,6 +2296,14 @@
         _captureSource.connect(sp);
         sp.connect(_captureSilentGain);
         _captureNode = sp;
+        _debugStats.captureBackend = "ScriptProcessor";
+        _debugStats.sampleRate = sampleRate;
+        _debugStats.windowSamples = windowSamples;
+        debugLogLine(
+          `capture: ScriptProcessor @ ${sampleRate}Hz / ${windowSamples} samples`,
+          "warn",
+        );
+        renderDebug();
         console.log(
           "Audio capture via ScriptProcessor, rate:",
           sampleRate,
@@ -2149,13 +2338,16 @@
       // ambient-only gate.
       function onAudioWindow(samples, sampleRate) {
         if (!state.yamnetEnabled) return;
+        _debugStats.windows++;
         const rmsDb = computeRmsDb(samples);
+        _debugStats.lastRmsDb = rmsDb;
         updateAmbientCalibration(rmsDb);
         if (_mpClassifier) {
           classifyWindow(samples, sampleRate, rmsDb);
         } else {
           runAmbientGate(rmsDb);
         }
+        renderDebug();
       }
 
       function computeRmsDb(samples) {
@@ -2182,38 +2374,73 @@
             _ambientFloorDb.toFixed(1),
             "dBFS",
           );
+          debugLogLine(
+            `floor calibrated: ${_ambientFloorDb.toFixed(1)} dBFS`,
+            "ok",
+          );
         }
       }
 
       async function classifyWindow(samples, sampleRate, rmsDb) {
-        if (_classifyBusy) return;
+        if (_classifyBusy) {
+          // Window dropped — the previous classify() is still running.
+          debugLogLine("dropped window (classify busy)", "warn");
+          return;
+        }
         // Skip classification on near-silence to save CPU/battery.
         // Only gate after calibration is done; before that, classify everything.
         if (
           _ambientFloorDb !== null &&
-          rmsDb < _ambientFloorDb + 6 // below floor+6dB = ambient, nothing notable
+          rmsDb < _ambientFloorDb + CONFIG.AUDIO_CLASSIFY_GATE_DB
         ) {
+          _debugStats.gated++;
           return;
         }
         _classifyBusy = true;
+        const t0 = performance.now();
         try {
           const results = _mpClassifier.classify(samples, sampleRate);
-          handleMediaPipeResults(results);
+          const dt = Math.round(performance.now() - t0);
+          if (_debugStats.firstClassifyMs == null)
+            _debugStats.firstClassifyMs = dt;
+          _debugStats.classified++;
+          handleMediaPipeResults(results, dt);
         } catch (e) {
           console.warn("Classify error:", e.message || e);
+          debugLogLine(`classify error: ${e.message || e}`, "err");
         }
         _classifyBusy = false;
       }
 
-      function handleMediaPipeResults(results) {
-        if (!results || !results.length) return;
+      function handleMediaPipeResults(results, dt) {
+        if (!results || !results.length) {
+          debugLogLine("classify returned no results", "warn");
+          return;
+        }
         // results[i].classifications[0].categories[] — sorted by score desc
         const cats = results[0]?.classifications?.[0]?.categories || [];
+        // Debug: show top 3 raw detections regardless of threshold
+        if (cats.length) {
+          const top3 = cats
+            .slice(0, 3)
+            .map(
+              (c) =>
+                `${c.categoryName || c.displayName}=${c.score.toFixed(2)}`,
+            )
+            .join(", ");
+          debugLogLine(`[${dt}ms] ${top3}`, "dim");
+        } else {
+          debugLogLine(`[${dt}ms] empty categories`, "warn");
+        }
         for (const c of cats) {
           if (c.score < CONFIG.AUDIO_SCORE_THRESHOLD) continue;
           const name = c.categoryName || c.displayName;
           const mapping = SOUND_LABELS[name];
           if (mapping) {
+            debugLogLine(
+              `→ MATCH: ${name} (${c.score.toFixed(2)}) → ${mapping.label}`,
+              "ok",
+            );
             handleSoundLabel(mapping.label, mapping.urgency);
             return;
           }
@@ -2248,8 +2475,13 @@
             urgency === "danger" ? 3 : 2,
           );
           vibrateAlert(urgency);
+          _debugStats.announced++;
+          debugLogLine(`announced: ${label}`, "ok");
         } else if (canSpeak) {
           state.lastSoundSpeak[label] = now;
+        } else {
+          _debugStats.suppressed++;
+          debugLogLine(`suppressed (cooldown): ${label}`, "dim");
         }
       }
 
