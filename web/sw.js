@@ -1,4 +1,4 @@
-const CACHE = 'guidedog-v29';     // bumped — diagnostic info surfaced in HUD header
+const CACHE = 'guidedog-v30';     // bumped — streaming cloud AI client
 const CDN_CACHE = 'guidedog-cdn-v2';
 
 const CDN_SCRIPTS = [

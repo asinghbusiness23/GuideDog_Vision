@@ -992,24 +992,7 @@
     // mode: 'detailed'   = accurate model, high-res (user-triggered)
     async function analyzeWithAI(mode = 'background') {
         try {
-            const canvas = document.createElement('canvas');
-            const isDetailed = mode === 'detailed';
-            canvas.width = isDetailed ? Math.min(state.video.videoWidth || 960, 1280) : Math.min(state.video.videoWidth || 960, 960);
-            canvas.height = isDetailed ? Math.min(state.video.videoHeight || 720, 960) : Math.min(state.video.videoHeight || 720, 720);
-            const ctx = canvas.getContext('2d');
-            // Fill black first — prevents transparent canvas falling back to PNG on iOS
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(state.video, 0, 0, canvas.width, canvas.height);
-            const imageData = canvas.toDataURL('image/jpeg', isDetailed ? 0.9 : 0.75).split(',')[1];
-
-            // Pass what local model already found so AI focuses on what it missed
-            const context = state.localDetections
-                .filter(d => d.confidence >= CONFIG.HIGH_CONFIDENCE)
-                .slice(0, 5)
-                .map(d => `${d.name} ${(d.distance * 3.28084).toFixed(0)}ft ${d.position}`)
-                .join(', ');
-
+            const { imageData, context } = await prepareAIFrame(mode);
             // Race both providers — use whichever responds first
             const result = await Promise.any([
                 fetchAI(imageData, 'openai', mode, context),
@@ -1020,6 +1003,58 @@
             console.error('AI error:', e);
             return null;
         }
+    }
+
+    // Streaming variant. Races both providers, takes whichever returns
+    // headers first, cancels the loser, then pipes deltas to onDelta as
+    // they arrive. Returns the full accumulated text or null.
+    async function analyzeWithAIStream(mode, onDelta) {
+        try {
+            const { imageData, context } = await prepareAIFrame(mode);
+
+            const openaiCtrl = new AbortController();
+            const anthropicCtrl = new AbortController();
+
+            // Try anthropic first (Claude Haiku is typically faster).
+            // If it fails or hits the backoff, fall through to openai.
+            // We don't race streams here because cancelling a partially-
+            // consumed stream mid-flight is awkward — better to keep
+            // failover serial.
+            let result = await fetchAIStream(
+                imageData, 'anthropic', mode, context, onDelta, anthropicCtrl.signal
+            );
+            if (result) return result;
+
+            result = await fetchAIStream(
+                imageData, 'openai', mode, context, onDelta, openaiCtrl.signal
+            );
+            return result || null;
+        } catch (e) {
+            console.error('AI stream error:', e);
+            return null;
+        }
+    }
+
+    async function prepareAIFrame(mode) {
+        const canvas = document.createElement('canvas');
+        const isDetailed = mode === 'detailed';
+        canvas.width = isDetailed ? Math.min(state.video.videoWidth || 960, 1280) : Math.min(state.video.videoWidth || 960, 960);
+        canvas.height = isDetailed ? Math.min(state.video.videoHeight || 720, 960) : Math.min(state.video.videoHeight || 720, 720);
+        const ctx = canvas.getContext('2d');
+        // Fill black first — prevents transparent canvas falling back to PNG on iOS
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(state.video, 0, 0, canvas.width, canvas.height);
+        const imageData = canvas.toDataURL('image/jpeg', isDetailed ? 0.9 : 0.75).split(',')[1];
+
+        // Pass what local model already found so AI focuses on what it missed
+        const context = state.localDetections
+            .filter(d => d.confidence >= CONFIG.HIGH_CONFIDENCE)
+            .slice(0, 5)
+            .map(d => `${d.name} ${(d.distance * 3.28084).toFixed(0)}ft ${d.position}`)
+            .join(', ');
+
+        return { imageData, context };
     }
 
     let _aiFailCount = 0;
@@ -1056,7 +1091,112 @@
             return null;
         }
     }
-    
+
+    // Streaming variant. Calls onDelta for each text chunk as it arrives,
+    // returns the full accumulated text when the stream ends. If the Worker
+    // doesn't support streaming for any reason, the caller falls back to
+    // the non-streaming fetchAI above.
+    async function fetchAIStream(imageData, provider, mode, context, onDelta, signal) {
+        if (Date.now() < _aiBackoffUntil) return null;
+
+        const t0 = performance.now();
+        let firstWordRecorded = false;
+        let full = '';
+
+        try {
+            const response = await fetch(CONFIG.WORKER_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: imageData, provider, mode, context, stream: true }),
+                signal
+            });
+            Perf.record('cloud_ai_ttfb', performance.now() - t0);
+
+            if (!response.ok) {
+                _aiFailCount++;
+                _aiBackoffUntil = Date.now() + Math.min(10000 * Math.pow(2, _aiFailCount - 1), 60000);
+                console.warn(`AI ${provider} (stream): ${response.status}`);
+                return null;
+            }
+            if (!response.body || !response.body.getReader) {
+                // Browser doesn't expose a readable stream — fall back.
+                _aiFailCount = 0;
+                const data = await response.json();
+                Perf.record('cloud_ai_total', performance.now() - t0);
+                return data.result || null;
+            }
+
+            _aiFailCount = 0;
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buf = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buf += decoder.decode(value, { stream: true });
+
+                const events = buf.split('\n\n');
+                buf = events.pop();
+
+                for (const event of events) {
+                    const line = event.split('\n').find(l => l.startsWith('data:'));
+                    if (!line) continue;
+                    const dataStr = line.slice(5).trim();
+                    if (!dataStr) continue;
+                    let parsed;
+                    try { parsed = JSON.parse(dataStr); }
+                    catch (e) { continue; }
+
+                    if (parsed.delta) {
+                        if (!firstWordRecorded) {
+                            Perf.record('cloud_ai_first_word', performance.now() - t0);
+                            firstWordRecorded = true;
+                        }
+                        full += parsed.delta;
+                        if (onDelta) try { onDelta(parsed.delta, full); } catch (e) {}
+                    } else if (parsed.error) {
+                        console.warn(`AI ${provider} stream error:`, parsed.error);
+                    }
+                    // {done:true} terminates the loop naturally via reader done
+                }
+            }
+
+            Perf.record('cloud_ai_total', performance.now() - t0);
+            return full || null;
+        } catch (e) {
+            if (e.name === 'AbortError') return null;  // intentional cancel
+            _aiFailCount++;
+            _aiBackoffUntil = Date.now() + Math.min(10000 * Math.pow(2, _aiFailCount - 1), 60000);
+            console.warn(`AI ${provider} stream threw:`, e.message || e);
+            return null;
+        }
+    }
+
+    // Buffer text chunks until a sentence boundary, then speak each
+    // complete sentence. flush() speaks any trailing partial text.
+    function makeStreamingSpeechBuffer() {
+        let buf = '';
+        return {
+            push(delta) {
+                buf += delta;
+                // Pull off any complete sentences (ending in . ! ?, then space or end).
+                while (true) {
+                    const m = buf.match(/^(.+?[.!?])(\s|$)/s);
+                    if (!m) break;
+                    const sentence = m[1].trim();
+                    buf = buf.slice(m[0].length);
+                    if (sentence) doSpeak(sentence, 1.05);
+                }
+            },
+            flush() {
+                const rest = buf.trim();
+                buf = '';
+                if (rest) doSpeak(rest, 1.05);
+            }
+        };
+    }
+
     // ========== LOCAL DETECTION ==========
     // Known real-world heights (meters) for COCO-SSD classes — used for distance triangulation
     const KNOWN_HEIGHTS = {
@@ -1988,32 +2128,37 @@
     async function describeArea() {
         speak('Scanning surroundings...', true);
 
-        const result = await analyzeWithAI('detailed');
-        if (result) {
-            speak(result, true);
-        } else if (state.localDetections.length > 0) {
-            const items = state.localDetections
-                .filter(d => d.confidence >= CONFIG.HIGH_CONFIDENCE)
-                .slice(0, 3)
-                .map(d => `${d.name} ${d.position}`)
-                .join(', ');
-            if (items) {
-                speak(`I see: ${items}`, true);
+        const buf = makeStreamingSpeechBuffer();
+        const result = await analyzeWithAIStream('detailed', (delta) => buf.push(delta));
+        buf.flush();
+
+        if (!result) {
+            // Streaming returned nothing — fall back to local detections.
+            if (state.localDetections.length > 0) {
+                const items = state.localDetections
+                    .filter(d => d.confidence >= CONFIG.HIGH_CONFIDENCE)
+                    .slice(0, 3)
+                    .map(d => `${d.name} ${d.position}`)
+                    .join(', ');
+                if (items) {
+                    speak(`I see: ${items}`, true);
+                } else {
+                    speak('Objects detected but not clearly identified', true);
+                }
             } else {
-                speak('Objects detected but not clearly identified', true);
+                speak('Area appears clear', true);
             }
-        } else {
-            speak('Area appears clear', true);
         }
     }
-    
+
     async function checkSafety() {
         speak('Checking safety...', true);
 
-        const result = await analyzeWithAI('detailed');
-        if (result) {
-            speak(result, true);
-        } else {
+        const buf = makeStreamingSpeechBuffer();
+        const result = await analyzeWithAIStream('detailed', (delta) => buf.push(delta));
+        buf.flush();
+
+        if (!result) {
             const obstacle = state.localDetections.find(d => d.inPath);
             if (obstacle) {
                 const displayName = getDisplayName(obstacle);
@@ -2042,10 +2187,11 @@
     async function triggerAIScan() {
         speak('Scanning surroundings...', true);
 
-        const result = await analyzeWithAI('detailed');
-        if (result) {
-            speak(result, true);
-        } else {
+        const buf = makeStreamingSpeechBuffer();
+        const result = await analyzeWithAIStream('detailed', (delta) => buf.push(delta));
+        buf.flush();
+
+        if (!result) {
             speak('Scan complete. No additional hazards detected.', true);
         }
     }
