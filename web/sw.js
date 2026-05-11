@@ -1,14 +1,25 @@
-const CACHE = 'guidedog-v25';     // bumped — full app-style UI: CAM toggle, gesture hint, no bottom buttons
-const CDN_CACHE = 'guidedog-cdn-v2';
+const CACHE = 'guidedog-v26';       // bumped — added sound detection + captions
+const CDN_CACHE = 'guidedog-cdn-v3'; // bumped — added YAMNet CDN URL
 
 const CDN_SCRIPTS = [
     'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js',
-    'https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js'
+    'https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js',
+    // Tesseract (lazy-loaded for OCR / bill reading) — pre-cache so it's ready
+    'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',
+];
+
+// These origins serve large model files / ES modules and should NEVER be cached
+// by the service worker — they have their own CDN caching and change frequently.
+const PASSTHROUGH_ORIGINS = [
+    'workers.dev',          // cloud AI proxy
+    'huggingface.co',       // Depth-Anything model weights
+    'esm.sh',               // @xenova/transformers ES module CDN
+    'kaggle.com',           // YAMNet model (tf.loadGraphModel fromTFHub)
+    'tensorflow.org',       // TF Hub redirects
+    'raw.githubusercontent.com', // YAMNet class map CSV
 ];
 
 self.addEventListener('install', e => {
-    // Don't cache app shell — always fetch fresh from network
-    // Only pre-cache CDN scripts (large, rarely change)
     e.waitUntil(
         caches.open(CDN_CACHE).then(c =>
             Promise.allSettled(CDN_SCRIPTS.map(url =>
@@ -24,17 +35,17 @@ self.addEventListener('activate', e => {
             .then(keys => Promise.all(
                 keys.filter(k => k !== CACHE && k !== CDN_CACHE).map(k => caches.delete(k))
             ))
-            // Do NOT call clients.claim() — avoids reload race condition on iOS Safari
+        // Do NOT call clients.claim() — avoids reload race condition on iOS Safari
     );
 });
 
 self.addEventListener('fetch', e => {
     const url = e.request.url;
 
-    // Never intercept cloud AI, model downloads, or module imports
-    if (url.includes('workers.dev') || url.includes('huggingface.co') || url.includes('esm.sh')) return;
+    // Never intercept passthrough origins
+    if (PASSTHROUGH_ORIGINS.some(o => url.includes(o))) return;
 
-    // CDN scripts: cache-first (they're versioned, safe to cache)
+    // CDN scripts: cache-first (versioned URLs — safe to cache long-term)
     if (url.includes('cdn.jsdelivr.net')) {
         e.respondWith(
             caches.open(CDN_CACHE).then(c =>
@@ -47,5 +58,5 @@ self.addEventListener('fetch', e => {
         return;
     }
 
-    // Everything else: go straight to network (no caching index.html)
+    // Everything else (index.html, manifest, sw.js): straight to network — always fresh
 });

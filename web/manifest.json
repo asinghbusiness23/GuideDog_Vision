@@ -1,10 +1,11 @@
 {
     "name": "GuideDog",
     "short_name": "GuideDog",
-    "description": "Real-time obstacle detection and navigation assistance for blind and visually impaired users",
+    "description": "Real-time obstacle detection, sound classification, and live captions for blind and deaf users",
     "start_url": "/GuideDog/",
     "display": "standalone",
     "background_color": "#000000",
     "theme_color": "#000000",
-    "lang": "en"
+    "lang": "en",
+    "permissions": ["camera", "microphone"]
 }

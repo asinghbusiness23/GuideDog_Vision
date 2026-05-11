@@ -15,8 +15,6 @@
         
         .app { height: 100dvh; display: flex; flex-direction: column; position: relative; }
         
-        /* Camera preview — hidden by default to match the iOS app's
-           battery-saving default. Toggled visible via the CAM button. */
         #video {
             position: absolute;
             top: 0;
@@ -31,7 +29,6 @@
             opacity: 0.3;
         }
         
-        /* Main overlay */
         .overlay {
             position: absolute;
             top: 0;
@@ -51,6 +48,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 8px;
         }
         
         .status-badge {
@@ -63,12 +61,31 @@
         .badge-safe { background: #0f8; color: #000; }
         .badge-warning { background: #fa0; color: #000; animation: pulse 1s infinite; }
         .badge-danger { background: #f44; color: #fff; animation: pulse 0.3s infinite; }
+
+        /* Sound badge — shown when YAMNet detects a notable sound */
+        .sound-badge {
+            padding: 6px 11px;
+            border-radius: 14px;
+            font-size: 12px;
+            font-weight: 600;
+            background: rgba(80, 160, 255, 0.25);
+            border: 1px solid rgba(80, 160, 255, 0.55);
+            color: #8cf;
+            max-width: 130px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            display: none;
+            transition: opacity 0.3s;
+        }
+        .sound-badge.visible { display: block; }
         
         .ai-badge {
             padding: 6px 12px;
             border-radius: 15px;
             font-size: 11px;
             background: rgba(255,255,255,0.2);
+            white-space: nowrap;
         }
 
         .cam-toggle {
@@ -86,6 +103,7 @@
             justify-content: center;
             gap: 1px;
             transition: background 0.15s, border-color 0.15s;
+            flex-shrink: 0;
         }
         .cam-toggle.on {
             background: rgba(0, 200, 120, 0.45);
@@ -144,127 +162,156 @@
             75% { transform: translateX(5px); }
         }
         
-        .alert-icon {
-            font-size: 60px;
-            margin-bottom: 15px;
-        }
-        
-        .alert-text {
-            font-size: 22px;
-            font-weight: 700;
-            line-height: 1.3;
-        }
-        
-        .alert-detail {
-            font-size: 16px;
-            margin-top: 10px;
-            opacity: 0.8;
-        }
-        
-        /* Direction indicators — hidden to match the iOS app, which conveys
-           direction through spatial audio and the alert box rather than
-           visible chips. Elements stay in the DOM so the existing JS that
-           styles them still runs without errors. */
-        .direction-row {
-            display: none;
-        }
-        
-        .direction-btn {
-            width: 70px;
-            height: 70px;
-            border-radius: 50%;
-            border: 3px solid rgba(255,255,255,0.3);
-            background: rgba(0,0,0,0.5);
+        .alert-icon { font-size: 60px; margin-bottom: 15px; }
+        .alert-text { font-size: 22px; font-weight: 700; line-height: 1.3; }
+        .alert-detail { font-size: 16px; margin-top: 10px; opacity: 0.8; }
+
+        /* ── CAPTION OVERLAY ── */
+        /* Positioned at the bottom of the alert area, above safe-area */
+        #captionOverlay {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: max(16px, env(safe-area-inset-bottom));
+            z-index: 30;
             display: flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            font-weight: bold;
-            opacity: 0.7;
-            color: #fff;
-            transition: all 0.2s;
+            pointer-events: none;
+            padding: 0 12px;
+            gap: 6px;
         }
 
-        .direction-btn.active {
-            opacity: 1;
-            border-color: #fa0;
-            background: rgba(255,170,0,0.3);
-        }
-
-        .direction-btn.danger {
-            opacity: 1;
-            border-color: #f44;
-            background: rgba(255,68,68,0.4);
-            animation: pulse 0.3s infinite;
-        }
-        
-        /* Control bar — hidden to match iOS app's gesture-driven UI.
-           Buttons remain in the DOM so their click handlers stay valid for
-           assistive tech, but the visible UI now mirrors the app. */
-        .control-bar {
-            display: none;
-        }
-
-        /* Legacy control bar styles kept for the now-hidden buttons. */
-        .control-bar.legacy-visible {
-            padding: 15px;
-            padding-bottom: max(15px, env(safe-area-inset-bottom));
-            background: rgba(0,0,0,0.85);
-            display: flex;
-            gap: 10px;
-        }
-        
-        .ctrl-btn {
-            flex: 1;
-            padding: 18px 10px;
-            border: none;
-            border-radius: 15px;
+        /* Sound event banner (YAMNet) */
+        #soundBanner {
+            background: rgba(0, 80, 180, 0.82);
+            border: 1px solid rgba(100, 180, 255, 0.55);
+            border-radius: 12px;
+            padding: 7px 16px;
             font-size: 14px;
+            font-weight: 600;
+            color: #c8e8ff;
+            text-align: center;
+            max-width: 340px;
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity 0.25s, transform 0.25s;
+            pointer-events: none;
+        }
+        #soundBanner.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Speech caption box */
+        #captionBox {
+            background: rgba(0, 0, 0, 0.78);
+            border: 1.5px solid rgba(255,255,255,0.18);
+            border-radius: 14px;
+            padding: 10px 18px;
+            font-size: 17px;
+            line-height: 1.4;
+            color: #fff;
+            text-align: center;
+            max-width: 380px;
+            min-height: 48px;
+            width: 100%;
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity 0.2s, transform 0.2s;
+            pointer-events: none;
+        }
+        #captionBox.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        /* Interim text is slightly dimmed */
+        #captionBox .interim { color: rgba(255,255,255,0.55); }
+        #captionBox .final   { color: #fff; }
+
+        /* Caption toggle button — in status bar */
+        .cc-toggle {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            border: 2px solid rgba(255,255,255,0.35);
+            background: rgba(255,255,255,0.12);
+            color: #fff;
+            font-size: 11px;
             font-weight: 700;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 5px;
-            background: rgba(255,255,255,0.2);
+            gap: 1px;
+            transition: background 0.15s, border-color 0.15s;
+            flex-shrink: 0;
+        }
+        .cc-toggle.on {
+            background: rgba(80, 160, 255, 0.4);
+            border-color: rgba(100, 180, 255, 0.9);
+        }
+
+        /* Sound toggle button */
+        .snd-toggle {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            border: 2px solid rgba(255,255,255,0.35);
+            background: rgba(255,255,255,0.12);
             color: #fff;
+            font-size: 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1px;
+            transition: background 0.15s, border-color 0.15s;
+            flex-shrink: 0;
         }
-        
-        .ctrl-btn.tall {
-            padding: 36px 10px;
+        .snd-toggle.on {
+            background: rgba(80, 200, 120, 0.4);
+            border-color: rgba(100, 220, 140, 0.9);
         }
+
+        /* Direction indicators — hidden but kept in DOM */
+        .direction-row { display: none; }
         
+        .direction-btn {
+            width: 70px; height: 70px; border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.3);
+            background: rgba(0,0,0,0.5);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; font-weight: bold;
+            opacity: 0.7; color: #fff; transition: all 0.2s;
+        }
+        .direction-btn.active { opacity: 1; border-color: #fa0; background: rgba(255,170,0,0.3); }
+        .direction-btn.danger { opacity: 1; border-color: #f44; background: rgba(255,68,68,0.4); animation: pulse 0.3s infinite; }
+
+        /* Control bar — hidden but wired for a11y */
+        .control-bar { display: none; }
+        .ctrl-btn {
+            flex: 1; padding: 18px 10px; border: none; border-radius: 15px;
+            font-size: 14px; font-weight: 700;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 5px; background: rgba(255,255,255,0.2); color: #fff;
+        }
+        .ctrl-btn.tall { padding: 36px 10px; }
         .ctrl-btn .icon { font-size: 24px; }
-        
-        .ctrl-btn.mic {
-            background: #48f;
-        }
-        
-        .ctrl-btn.mic.listening {
-            background: #f44;
-            animation: pulse 0.5s infinite;
-        }
+        .ctrl-btn.mic { background: #48f; }
+        .ctrl-btn.mic.listening { background: #f44; animation: pulse 0.5s infinite; }
         
         /* Loading */
         .loading {
-            position: fixed;
-            inset: 0;
-            background: #000;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 100;
-            transition: opacity 0.5s;
+            position: fixed; inset: 0; background: #000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 100; transition: opacity 0.5s;
         }
         .loading.hidden { opacity: 0; pointer-events: none; display: none; }
         .loading-spinner {
-            width: 60px;
-            height: 60px;
-            border: 5px solid #333;
-            border-top-color: #0f8;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
+            width: 60px; height: 60px;
+            border: 5px solid #333; border-top-color: #0f8;
+            border-radius: 50%; animation: spin 1s linear infinite;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .loading-text { font-size: 18px; margin-top: 25px; text-align: center; }
@@ -272,14 +319,9 @@
         
         /* Help */
         .help {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.98);
-            z-index: 50;
-            display: none;
-            flex-direction: column;
-            padding: 20px;
-            overflow-y: auto;
+            position: fixed; inset: 0; background: rgba(0,0,0,0.98);
+            z-index: 50; display: none; flex-direction: column;
+            padding: 20px; overflow-y: auto;
         }
         .help.visible { display: flex; }
         .help-title { font-size: 24px; font-weight: 700; margin-bottom: 20px; text-align: center; }
@@ -291,9 +333,7 @@
         .help-item.toggle:active { background: #1a1a1a; }
         .version-tag { position: fixed; bottom: max(6px, env(safe-area-inset-bottom)); right: 8px; font-size: 10px; color: rgba(255,255,255,0.3); z-index: 5; pointer-events: none; }
 
-        /* Colorblind-friendly palette (Okabe-Ito CUD) for protanopia / deuteranopia.
-           Replaces red/green with vermillion / bluish-green which stay distinguishable
-           in red-green color blindness (~6% of males). Toggle via help dialog. */
+        /* Colorblind palette */
         body.colorblind .badge-safe    { background: #009E73; color: #fff; }
         body.colorblind .badge-warning { background: #E69F00; color: #000; }
         body.colorblind .badge-danger  { background: #D55E00; color: #fff; }
@@ -320,8 +360,8 @@
     <div class="help" id="privacyNotice" role="dialog" aria-modal="true" aria-labelledby="privacyTitle">
         <div class="help-title" id="privacyTitle">Privacy &amp; Permissions</div>
         <div class="help-item">
-            <div class="help-label">Camera &amp; AI Guide</div>
-            <div class="help-desc">GuideDog uses your camera and cloud AI to help you navigate. All detection runs on your device. Photos are processed and immediately discarded.</div>
+            <div class="help-label">Camera, Microphone &amp; AI Guide</div>
+            <div class="help-desc">GuideDog uses your camera, microphone, and cloud AI to help you navigate. Object detection and sound classification run on your device. Photos and audio are processed and immediately discarded.</div>
         </div>
         <div class="help-item">
             <div class="help-label">No Account Required</div>
@@ -337,6 +377,16 @@
         <div class="help-item">
             <div class="help-label">AUTOMATIC PROTECTION</div>
             <div class="help-desc">App constantly scans and warns you about obstacles, stairs, walls, doors automatically. You don't need to do anything!</div>
+        </div>
+
+        <div class="help-item">
+            <div class="help-label">Live Captions (CC button)</div>
+            <div class="help-desc">Tap CC to turn on closed captions. Speech near you will appear as text at the bottom of the screen in real time.</div>
+        </div>
+
+        <div class="help-item">
+            <div class="help-label">Sound Detection (🔊 button)</div>
+            <div class="help-desc">Tap 🔊 to enable sound detection. GuideDog will identify sounds like alarms, sirens, dogs, traffic, music, and more.</div>
         </div>
         
         <div class="help-item">
@@ -362,7 +412,7 @@
         <button class="help-close" id="helpClose">START - TAP HERE OR SAY "START"</button>
     </div>
     
-    <div class="version-tag" id="versionTag">build 25c-v2</div>
+    <div class="version-tag" id="versionTag">build 25d-v1</div>
 
     <div class="app">
         <video id="video" autoplay playsinline muted></video>
@@ -371,6 +421,12 @@
             <div class="status-bar">
                 <div class="status-badge badge-safe" id="statusBadge" style="display:none;">SAFE</div>
                 <div class="ai-badge" id="aiBadge">AI Active</div>
+                <!-- Sound detection toggle -->
+                <button class="snd-toggle" id="btnSnd" aria-label="Toggle sound detection" aria-pressed="false" title="Sound Detection">🔊</button>
+                <!-- Closed caption toggle -->
+                <button class="cc-toggle" id="btnCC" aria-label="Toggle live captions" aria-pressed="false" title="Closed Captions">
+                    <span style="font-size:15px;font-weight:800;">CC</span>
+                </button>
                 <button class="cam-toggle" id="btnCam" aria-label="Toggle camera preview on or off">
                     <svg id="camIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
@@ -398,23 +454,28 @@
                 </div>
             </div>
 
+            <!-- Control bar — hidden, wired for assistive tech -->
             <div class="control-bar">
                 <button class="ctrl-btn tall" id="btnDescribe">
-                    <span class="icon">?</span>
-                    <span>What's Around</span>
+                    <span class="icon">?</span><span>What's Around</span>
                 </button>
                 <button class="ctrl-btn mic" id="btnMic">
-                    <span class="icon">M</span>
-                    <span>Speak</span>
+                    <span class="icon">M</span><span>Speak</span>
                 </button>
                 <button class="ctrl-btn tall" id="btnSafe">
-                    <span class="icon">&#10003;</span>
-                    <span>Is It Safe</span>
+                    <span class="icon">&#10003;</span><span>Is It Safe</span>
                 </button>
             </div>
         </div>
     </div>
 
+    <!-- Caption overlay (always on top, outside .app flow) -->
+    <div id="captionOverlay" aria-live="polite" aria-atomic="false">
+        <div id="soundBanner" role="status"></div>
+        <div id="captionBox" role="status"></div>
+    </div>
+
+    <!-- TensorFlow.js + COCO-SSD (used for object detection AND YAMNet) -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"
             integrity="sha384-vE8hbVJ4lezako5rlvE7bY0BVzWlFhZncPlckrqNwcUQpVtgbENTgZ8TBbnPjZre"
             crossorigin="anonymous"></script>
@@ -448,26 +509,58 @@
     const CONFIG = {
         WORKER_URL: "https://guidedog.kpremks.workers.dev",
         
-        // Distance zones (in meters, estimated)
-        DANGER_ZONE: 1.0,      // < 1m = DANGER
-        WARNING_ZONE: 2.0,     // < 2m = WARNING  
-        AWARENESS_ZONE: 4.0,   // < 4m = awareness
+        DANGER_ZONE: 1.0,
+        WARNING_ZONE: 2.0,
+        AWARENESS_ZONE: 4.0,
         
-        // Timing
-        AI_SCAN_INTERVAL: 5000,      // AI guide scan every 5s
-        DEPTH_SCAN_INTERVAL: 400,    // depth model every 400ms (was 600)
-        LOCAL_SCAN_INTERVAL: 200,    // Local detection every 200ms (was 300)
-        VOICE_COOLDOWN: 1500,        // Don't repeat same alert for 1.5s (was 2s)
+        AI_SCAN_INTERVAL: 5000,
+        DEPTH_SCAN_INTERVAL: 400,
+        LOCAL_SCAN_INTERVAL: 200,
+        VOICE_COOLDOWN: 1500,
         VIBRATE_COOLDOWN: 400,
 
-        // Confidence threshold for naming objects
         HIGH_CONFIDENCE: 0.7,
 
-        // Objects that matter for navigation
         CRITICAL: ["car", "bus", "truck", "motorcycle", "bicycle"],
         OBSTACLES: ["person", "chair", "bench", "couch", "bed", "dining table",
                     "refrigerator", "backpack",
-                    "fire hydrant", "stop sign", "parking meter", "laptop", "tv"]
+                    "fire hydrant", "stop sign", "parking meter", "laptop", "tv"],
+
+        // YAMNet — sound categories worth announcing to the user.
+        // Maps partial class name fragments → friendly spoken label.
+        // YAMNet class list: https://github.com/google-research/audioset_ontology
+        SOUND_CATEGORIES: {
+            'Siren':          { label: '🚨 Siren nearby',       urgency: 'danger'  },
+            'Fire alarm':     { label: '🔥 Fire alarm',          urgency: 'danger'  },
+            'Smoke detector': { label: '🔥 Smoke detector',      urgency: 'danger'  },
+            'Alarm':          { label: '⚠️ Alarm sounding',      urgency: 'warning' },
+            'Car alarm':      { label: '🚗 Car alarm',           urgency: 'warning' },
+            'Dog':            { label: '🐕 Dog barking',         urgency: 'warning' },
+            'Bark':           { label: '🐕 Dog barking',         urgency: 'warning' },
+            'Gunshot':        { label: '⚠️ Loud bang/gunshot',   urgency: 'danger'  },
+            'Explosion':      { label: '💥 Explosion',           urgency: 'danger'  },
+            'Traffic':        { label: '🚦 Traffic noise',       urgency: 'warning' },
+            'Car':            { label: '🚗 Vehicle nearby',      urgency: 'warning' },
+            'Horn':           { label: '📯 Horn honking',        urgency: 'danger'  },
+            'Bicycle bell':   { label: '🚲 Bicycle nearby',      urgency: 'warning' },
+            'Bell':           { label: '🔔 Bell ringing',        urgency: 'info'    },
+            'Speech':         { label: '🗣️ Someone speaking',   urgency: 'info'    },
+            'Music':          { label: '🎵 Music playing',       urgency: 'info'    },
+            'Crying':         { label: '😢 Crying nearby',       urgency: 'info'    },
+            'Laughter':       { label: '😄 Laughter nearby',     urgency: 'info'    },
+            'Baby cry':       { label: '👶 Baby crying',         urgency: 'info'    },
+            'Crowd':          { label: '👥 Crowd nearby',        urgency: 'info'    },
+            'Rain':           { label: '🌧️ Rain detected',      urgency: 'info'    },
+            'Thunder':        { label: '⛈️ Thunder',            urgency: 'warning' },
+        },
+
+        YAMNET_INTERVAL: 1000,         // run YAMNet every 1s
+        YAMNET_SCORE_THRESHOLD: 0.12,  // minimum score to announce a sound
+        SOUND_BANNER_DURATION: 4000,   // ms to show the sound banner
+        SOUND_SPEAK_COOLDOWN: 6000,    // don't re-speak same sound for 6s
+
+        // Caption
+        CAPTION_HIDE_DELAY: 5000,      // hide caption box after 5s of silence
     };
     
     // ========== STATE ==========
@@ -477,40 +570,47 @@
         isRunning: false,
         isPaused: false,
         
-        // Detection results
         localDetections: [],
         aiResult: null,
         lastAIScan: 0,
-        aiScanInProgress: false, // prevents overlapping requests (sonnet takes 2-3s)
-        aiHazard: null,          // persists AI cloud-detected hazard across loop iterations
-        depthHazard: null,       // persists depth-model hazard (separate from AI)
+        aiScanInProgress: false,
+        aiHazard: null,
+        depthHazard: null,
 
-        // Depth estimation — LiDAR (WebXR) or Transformers.js fallback
         xrSession: null,
         xrDepthActive: false,
         depthPipeline: null,
-        depthHistory: [],        // rolling window of {c,l,r} readings
+        depthHistory: [],
         lastDepthScan: 0,
-        depthCalibration: null,  // { depthVal, realMeters } — auto-calibrated from COCO-SSD
+        depthCalibration: null,
         
-        // Current status
-        currentStatus: 'safe',   // safe, warning, danger — statusChanged compares against this
+        currentStatus: 'safe',
         currentObstacle: null,
 
-        // Alert timing
         lastAlerts: {},
         lastVibrate: 0,
         lastVoice: 0,
-        lastAlertSound: 0,       // rate-limits beeping during sustained alerts
-        lastDangerAnnounce: 0,   // re-announce sustained danger every 5s max
+        lastAlertSound: 0,
+        lastDangerAnnounce: 0,
         
-        // Voice
         recognition: null,
         isListening: false,
         
-        // Audio
         audioCtx: null,
-        audioUnlocked: false
+        audioUnlocked: false,
+
+        // ── YAMNet / sound detection ──
+        yamnetModel: null,
+        yamnetEnabled: false,
+        yamnetMicStream: null,
+        yamnetInterval: null,
+        lastSoundSpeak: {},     // key → timestamp, rate-limits per-category announcements
+
+        // ── Closed captions ──
+        captionEnabled: false,
+        captionRecognition: null,
+        captionHideTimer: null,
+        captionFinalText: '',
     };
     
     // ========== AUDIO ==========
@@ -519,7 +619,6 @@
             state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         } catch (e) {
             console.warn('Web Audio API unavailable:', e);
-            // Audio alerts will be silent; voice and vibration still work
             const banner = document.getElementById('aiBadge');
             if (banner) banner.textContent = 'Audio Unavailable';
         }
@@ -531,13 +630,10 @@
         }
     }
 
-    // iOS Safari locks AudioContext and speechSynthesis until a user gesture.
-    // Call this from every tap/click handler to ensure audio works.
     function unlockAudio() {
         resumeAudio();
         if (!state.audioUnlocked) {
             try {
-                // Prime speechSynthesis with a zero-volume utterance
                 const primer = new SpeechSynthesisUtterance(' ');
                 primer.volume = 0;
                 primer.rate = 10;
@@ -550,55 +646,36 @@
     function playBeep(frequency, duration, pan = 0, volume = 0.5) {
         if (!state.audioCtx) return;
         resumeAudio();
-        
         try {
             const osc = state.audioCtx.createOscillator();
             const gain = state.audioCtx.createGain();
             const panner = state.audioCtx.createStereoPanner();
-
             osc.frequency.value = frequency;
             osc.type = 'sine';
-
             gain.gain.setValueAtTime(volume, state.audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, state.audioCtx.currentTime + duration);
-
             panner.pan.value = Math.max(-1, Math.min(1, pan));
-
             osc.connect(gain);
             gain.connect(panner);
             panner.connect(state.audioCtx.destination);
-
             osc.start();
             osc.stop(state.audioCtx.currentTime + duration);
-
-            // Disconnect nodes after playback to prevent memory leak
-            osc.onended = () => {
-                osc.disconnect();
-                gain.disconnect();
-                panner.disconnect();
-            };
-        } catch (e) {
-            console.warn('playBeep error:', e);
-        }
+            osc.onended = () => { osc.disconnect(); gain.disconnect(); panner.disconnect(); };
+        } catch (e) { console.warn('playBeep error:', e); }
     }
     
-    // Alert sounds based on urgency
     function playAlertSound(position, urgency) {
         let pan = 0;
         if (position === 'left') pan = -0.8;
         else if (position === 'right') pan = 0.8;
-        
         if (urgency === 'danger') {
-            // Rapid high beeps
             playBeep(1200, 0.1, pan, 0.7);
             setTimeout(() => playBeep(1200, 0.1, pan, 0.7), 150);
             setTimeout(() => playBeep(1200, 0.1, pan, 0.7), 300);
         } else if (urgency === 'warning') {
-            // Double beep
             playBeep(800, 0.15, pan, 0.5);
             setTimeout(() => playBeep(800, 0.15, pan, 0.5), 200);
         } else {
-            // Single soft beep
             playBeep(500, 0.2, pan, 0.3);
         }
     }
@@ -608,39 +685,24 @@
         const now = Date.now();
         if (now - state.lastVibrate < CONFIG.VIBRATE_COOLDOWN) return;
         state.lastVibrate = now;
-        
-        try {
-            navigator.vibrate?.(pattern);
-        } catch (e) {}
+        try { navigator.vibrate?.(pattern); } catch (e) {}
     }
     
     function vibrateAlert(urgency) {
-        if (urgency === 'danger') {
-            vibrate([200, 100, 200, 100, 200]);
-        } else if (urgency === 'warning') {
-            vibrate([150, 100, 150]);
-        } else {
-            vibrate([100]);
-        }
+        if (urgency === 'danger') vibrate([200, 100, 200, 100, 200]);
+        else if (urgency === 'warning') vibrate([150, 100, 150]);
+        else vibrate([100]);
     }
     
     // ========== SPEECH ==========
-    // iOS Safari bug: speechSynthesis.cancel() followed immediately by .speak()
-    // can silently drop the utterance. We work around this by:
-    // 1. Never calling cancel() — just let utterances queue
-    // 2. Using a single doSpeak() that handles the queue
-    // 3. Unlocking audio on first touch globally, not just in alertArea
-    let _currentSpeechPriority = 0;
-    let _lastSpeechTime = 0;
-
-    // Ensure audio works — attach to document level so ANY touch unlocks
     document.addEventListener('touchstart', unlockAudio, { once: true, passive: true });
     document.addEventListener('click', unlockAudio, { once: true });
 
+    let _currentSpeechPriority = 0;
+    let _lastSpeechTime = 0;
+
     function doSpeak(text, rate = 1.1) {
         try {
-            // Don't cancel — iOS drops speech after cancel. Just let it queue.
-            // speechSynthesis only queues, so rapid calls won't overlap.
             const u = new SpeechSynthesisUtterance(text);
             u.rate = rate;
             u.volume = 1.0;
@@ -649,9 +711,7 @@
             speechSynthesis.speak(u);
             _lastSpeechTime = Date.now();
             console.log('Speaking:', text);
-        } catch (e) {
-            console.warn('Speech error:', e);
-        }
+        } catch (e) { console.warn('Speech error:', e); }
     }
 
     function speak(text, force = false) {
@@ -659,101 +719,64 @@
         const now = Date.now();
         if (!force && now - _lastSpeechTime < CONFIG.VOICE_COOLDOWN) return;
         if (state.isListening) stopListening();
-        // Cancel only for forced user-initiated speech (button taps)
         if (force) { try { speechSynthesis.cancel(); } catch(e){} }
-        _currentSpeechPriority = 0;  // user speech has no priority lock
+        _currentSpeechPriority = 0;
         doSpeak(text);
     }
 
     function speakAlert(key, text, priority = 2) {
         const now = Date.now();
-        const cooldowns = { 3: 0, 2: 0, 1: 0 };
-        const cooldown = cooldowns[priority] || 3000;
-
-        if (now - (state.lastAlerts[key] || 0) < cooldown) return;
-
+        if (now - (state.lastAlerts[key] || 0) < 0) return;
         state.lastAlerts[key] = now;
         if (state.isListening) stopListening();
-
-        // For danger: cancel current speech and speak immediately
         if (priority >= 3) {
             try { speechSynthesis.cancel(); } catch(e){}
             setTimeout(() => doSpeak(text, 1.3), 50);
         } else {
-            // Non-danger: speak (queues naturally if something is playing)
             doSpeak(text, 1.1);
         }
         _currentSpeechPriority = priority;
     }
     
-    // ========== SPEECH RECOGNITION ==========
+    // ========== SPEECH RECOGNITION (voice commands) ==========
     function initSpeechRecognition() {
         try {
             const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SR) return false;
-            
             state.recognition = new SR();
             state.recognition.continuous = false;
             state.recognition.interimResults = false;
             state.recognition.lang = 'en-US';
-            
-            state.recognition.onstart = () => {
-                state.isListening = true;
-                updateMicButton(true);
-            };
-            
+            state.recognition.onstart = () => { state.isListening = true; updateMicButton(true); };
             state.recognition.onresult = (e) => {
                 const text = e.results[0][0].transcript.toLowerCase();
                 console.log('Heard:', text);
                 handleVoiceCommand(text);
             };
-            
-            state.recognition.onend = () => {
-                state.isListening = false;
-                updateMicButton(false);
-            };
-            
+            state.recognition.onend = () => { state.isListening = false; updateMicButton(false); };
             state.recognition.onerror = (e) => {
                 state.isListening = false;
                 updateMicButton(false);
-                if (e.error === 'no-speech') {
-                    speak('No speech heard. Tap microphone and try again.');
-                }
+                if (e.error === 'no-speech') speak('No speech heard. Tap microphone and try again.');
             };
-            
             return true;
-        } catch (e) {
-            return false;
-        }
+        } catch (e) { return false; }
     }
     
     function startListening() {
-        if (!state.recognition) {
-            speak('Voice not available');
-            return;
-        }
-        
-        if (state.isListening) {
-            stopListening();
-            return;
-        }
-        
+        if (!state.recognition) { speak('Voice not available'); return; }
+        if (state.isListening) { stopListening(); return; }
         speechSynthesis.cancel();
         try {
             state.recognition.start();
             vibrate([50]);
         } catch (e) {
-            try {
-                state.recognition.stop();
-                setTimeout(() => state.recognition.start(), 100);
-            } catch (e2) {}
+            try { state.recognition.stop(); setTimeout(() => state.recognition.start(), 100); } catch (e2) {}
         }
     }
     
     function stopListening() {
-        try {
-            state.recognition?.stop();
-        } catch (e) {}
+        try { state.recognition?.stop(); } catch (e) {}
         state.isListening = false;
         updateMicButton(false);
     }
@@ -771,79 +794,349 @@
     
     function handleVoiceCommand(text) {
         vibrate([30]);
-        
         if (text.includes('start') || text.includes('begin')) {
-            if (document.getElementById('help').classList.contains('visible')) {
-                hideHelp();
-                return;
+            if (document.getElementById('help').classList.contains('visible')) { hideHelp(); return; }
+        }
+        if (text.includes('stop') || text.includes('pause') || text.includes('quiet')) {
+            state.isPaused = true; speak('Alerts paused. Say resume to continue.', true); return;
+        }
+        if (text.includes('resume') || text.includes('continue')) {
+            state.isPaused = false; speak('Alerts resumed.', true); return;
+        }
+        if (text.includes('caption') || text.includes('subtitle') || text.includes('closed caption')) {
+            toggleCaptions(); return;
+        }
+        if (text.includes('sound') || text.includes('listen') || text.includes('audio detect')) {
+            toggleSoundDetection(); return;
+        }
+        if (text.includes('color') || text.includes('colour')) { webIdentifyColor(); return; }
+        if (text.includes('bill') || text.includes('dollar') || text.includes('money') || text.includes('cash') || text.includes('currency')) {
+            webIdentifyCurrency(); return;
+        }
+        if (text.includes('read')) { webRecognizeText(); return; }
+        if (text.includes('around') || text.includes('describe') || text.includes('what')) { describeArea(); return; }
+        if (text.includes('safe') || text.includes('clear') || text.includes('walk')) { checkSafety(); return; }
+        if (text.includes('left')) { speakDirection('left'); return; }
+        if (text.includes('right')) { speakDirection('right'); return; }
+        if (text.includes('scan') || text.includes('stair') || text.includes('door')) { triggerAIScan(); return; }
+        if (text.includes('help')) { showHelp(); return; }
+        speak('Say: what is around, is it safe, left, right, or scan.', true);
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  CLOSED CAPTIONING — Web Speech API, continuous mode
+    // ══════════════════════════════════════════════════════════════════
+    function initCaptionRecognition() {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) {
+            console.warn('SpeechRecognition not supported — captions unavailable');
+            return false;
+        }
+        const r = new SR();
+        r.continuous = true;
+        r.interimResults = true;
+        r.lang = 'en-US';
+        r.maxAlternatives = 1;
+
+        r.onresult = (e) => {
+            let final = '';
+            let interim = '';
+            for (let i = e.resultIndex; i < e.results.length; i++) {
+                const t = e.results[i][0].transcript;
+                if (e.results[i].isFinal) final += t + ' ';
+                else interim += t;
+            }
+            if (final) state.captionFinalText = (state.captionFinalText + final).slice(-300);
+            showCaption(state.captionFinalText, interim);
+        };
+
+        r.onerror = (e) => {
+            if (e.error === 'no-speech') return;       // benign
+            if (e.error === 'aborted') return;          // we called stop()
+            console.warn('Caption recognition error:', e.error);
+        };
+
+        r.onend = () => {
+            // Auto-restart if captions are still enabled and app is running
+            if (state.captionEnabled && state.isRunning) {
+                try { r.start(); } catch (_) {}
+            }
+        };
+
+        state.captionRecognition = r;
+        return true;
+    }
+
+    function showCaption(finalText, interimText) {
+        const box = document.getElementById('captionBox');
+        const combined = (finalText + (interimText ? `<span class="interim">${escapeHTML(interimText)}</span>` : '')).trim();
+        if (!combined) { hideCaption(); return; }
+
+        box.innerHTML = `<span class="final">${escapeHTML(finalText)}</span>` +
+                        (interimText ? `<span class="interim">${escapeHTML(interimText)}</span>` : '');
+        box.classList.add('visible');
+
+        // Auto-hide after silence
+        clearTimeout(state.captionHideTimer);
+        state.captionHideTimer = setTimeout(() => {
+            state.captionFinalText = '';
+            hideCaption();
+        }, CONFIG.CAPTION_HIDE_DELAY);
+    }
+
+    function hideCaption() {
+        const box = document.getElementById('captionBox');
+        box.classList.remove('visible');
+    }
+
+    function escapeHTML(str) {
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function toggleCaptions() {
+        if (!state.captionRecognition) {
+            const ok = initCaptionRecognition();
+            if (!ok) { speak('Captions not supported on this device.', true); return; }
+        }
+
+        state.captionEnabled = !state.captionEnabled;
+        const btn = document.getElementById('btnCC');
+        btn.classList.toggle('on', state.captionEnabled);
+        btn.setAttribute('aria-pressed', state.captionEnabled ? 'true' : 'false');
+
+        if (state.captionEnabled) {
+            state.captionFinalText = '';
+            try {
+                // Caption recognition uses the same microphone as voice commands.
+                // If voice command recognition is active, stop it first to avoid conflicts.
+                if (state.isListening) stopListening();
+                state.captionRecognition.start();
+            } catch (e) {
+                console.warn('Caption start error:', e);
+            }
+            speak('Live captions on.', true);
+        } else {
+            try { state.captionRecognition.stop(); } catch (e) {}
+            hideCaption();
+            speak('Live captions off.', true);
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  SOUND DETECTION — YAMNet via TensorFlow.js
+    // ══════════════════════════════════════════════════════════════════
+
+    // YAMNet class names (521 classes). We ship a trimmed list here covering the
+    // categories defined in CONFIG.SOUND_CATEGORIES. Full mapping is resolved at
+    // runtime by matching class name fragments.
+    // YAMNet tfhub model returns scores as Float32Array in class-index order.
+    // We load the class map from the model's metadata JSON.
+    let _yamnetClasses = null;   // string[] once loaded
+
+    async function loadYAMNet() {
+        if (state.yamnetModel) return true;
+        const badge = document.getElementById('aiBadge');
+        if (badge) badge.textContent = 'Loading sound model…';
+
+        try {
+            // YAMNet hosted on TF Hub as a SavedModel converted to TFJS format.
+            // We use the community-converted version on jsDelivr.
+            state.yamnetModel = await tf.loadGraphModel(
+                'https://www.kaggle.com/models/google/yamnet/tfJs/tfjs/1',
+                { fromTFHub: true }
+            );
+
+            // Load class names from the same location
+            const metaResp = await fetch(
+                'https://raw.githubusercontent.com/tensorflow/models/master/research/audioset/yamnet/yamnet_class_map.csv'
+            );
+            if (metaResp.ok) {
+                const csv = await metaResp.text();
+                _yamnetClasses = csv.split('\n').slice(1)  // skip header
+                    .filter(Boolean)
+                    .map(line => line.split(',')[2]?.replace(/"/g, '').trim() || '');
+            }
+
+            if (badge) {
+                badge.textContent = state.depthPipeline || state.xrDepthActive
+                    ? 'AI + Depth + Sound Active' : 'AI + Sound Active';
+            }
+            console.log('YAMNet loaded, classes:', _yamnetClasses?.length);
+            return true;
+        } catch (e) {
+            console.error('YAMNet load failed:', e);
+            if (badge) badge.textContent = 'AI Active';
+            state.yamnetModel = null;
+            return false;
+        }
+    }
+
+    // Classify audio from the mic stream using YAMNet.
+    // YAMNet expects a mono Float32Array of 16 kHz audio, length ≥ 15600 (0.975s).
+    async function runYAMNet() {
+        if (!state.yamnetModel || !state.yamnetMicStream || !state.yamnetEnabled) return;
+        if (!state.audioCtx) return;
+
+        try {
+            resumeAudio();
+            const sampleRate = state.audioCtx.sampleRate;
+            const bufferSize = Math.max(16384, Math.ceil(sampleRate * 0.975));
+
+            const source = state.audioCtx.createMediaStreamSource(state.yamnetMicStream);
+            const recorder = state.audioCtx.createScriptProcessor(bufferSize, 1, 1);
+
+            await new Promise((resolve, reject) => {
+                recorder.onaudioprocess = async (e) => {
+                    const inputData = e.inputBuffer.getChannelData(0);
+
+                    // Resample to 16 kHz if needed (most mobile browsers record at 44.1/48 kHz)
+                    const targetRate = 16000;
+                    const ratio = targetRate / sampleRate;
+                    const resampledLen = Math.round(inputData.length * ratio);
+                    const resampled = new Float32Array(resampledLen);
+                    for (let i = 0; i < resampledLen; i++) {
+                        resampled[i] = inputData[Math.round(i / ratio)] || 0;
+                    }
+
+                    try {
+                        const waveform = tf.tensor1d(resampled);
+                        const [scores] = await state.yamnetModel.executeAsync(waveform);
+                        // scores shape: [frames, 521] — average over frames
+                        const meanScores = tf.mean(scores, 0);
+                        const scoresArr = await meanScores.data();
+
+                        waveform.dispose();
+                        scores.dispose();
+                        meanScores.dispose();
+
+                        handleYAMNetScores(scoresArr);
+                    } catch (err) {
+                        console.warn('YAMNet inference error:', err);
+                    }
+
+                    // Disconnect after one buffer
+                    recorder.disconnect();
+                    source.disconnect();
+                    resolve();
+                };
+
+                recorder.onerror = reject;
+                source.connect(recorder);
+                recorder.connect(state.audioCtx.destination);
+            });
+        } catch (e) {
+            console.warn('YAMNet audio capture error:', e);
+        }
+    }
+
+    function handleYAMNetScores(scoresArr) {
+        if (!_yamnetClasses) return;
+
+        // Find the top-scoring category that matches our interest list
+        let bestMatch = null;
+        let bestScore = CONFIG.YAMNET_SCORE_THRESHOLD;
+
+        for (let i = 0; i < scoresArr.length; i++) {
+            const score = scoresArr[i];
+            if (score < bestScore) continue;
+            const className = _yamnetClasses[i] || '';
+            // Match against our CONFIG categories
+            for (const [fragment, info] of Object.entries(CONFIG.SOUND_CATEGORIES)) {
+                if (className.toLowerCase().includes(fragment.toLowerCase())) {
+                    bestMatch = { className, score, ...info };
+                    bestScore = score;
+                    break;
+                }
             }
         }
-        
-        if (text.includes('stop') || text.includes('pause') || text.includes('quiet')) {
-            state.isPaused = true;
-            speak('Alerts paused. Say resume to continue.', true);
-            return;
-        }
-        
-        if (text.includes('resume') || text.includes('continue')) {
-            state.isPaused = false;
-            speak('Alerts resumed.', true);
-            return;
-        }
-        
-        // Vision tricks — match before generic "what" so "what color" / "what bill"
-        // aren't eaten by describeArea below.
-        if (text.includes('color') || text.includes('colour')) {
-            webIdentifyColor();
-            return;
-        }
-        if (text.includes('bill') || text.includes('dollar') ||
-            text.includes('money') || text.includes('cash') ||
-            text.includes('currency')) {
-            webIdentifyCurrency();
-            return;
-        }
-        if (text.includes('read')) {
-            webRecognizeText();
-            return;
-        }
 
-        if (text.includes('around') || text.includes('describe') || text.includes('what')) {
-            describeArea();
-            return;
-        }
+        if (!bestMatch) return;
 
-        if (text.includes('safe') || text.includes('clear') || text.includes('walk')) {
-            checkSafety();
-            return;
+        const now = Date.now();
+        const lastSpeak = state.lastSoundSpeak[bestMatch.label] || 0;
+        const canSpeak = now - lastSpeak > CONFIG.SOUND_SPEAK_COOLDOWN;
+
+        // Show the banner
+        showSoundBanner(bestMatch.label);
+
+        // Update status bar sound badge
+        const sb = document.querySelector('.sound-badge');
+        if (sb) { sb.textContent = bestMatch.label; sb.classList.add('visible'); }
+
+        // Speak aloud + vibrate for danger/warning sounds
+        if (canSpeak && (bestMatch.urgency === 'danger' || bestMatch.urgency === 'warning')) {
+            state.lastSoundSpeak[bestMatch.label] = now;
+            const spokenLabel = bestMatch.label.replace(/[🚨🔥⚠️🚗🐕📯🔔🗣️🎵😢😄👶👥🌧️⛈️💥🚦🚲]/gu, '').trim();
+            speakAlert('sound_' + bestMatch.label, spokenLabel, bestMatch.urgency === 'danger' ? 3 : 2);
+            vibrateAlert(bestMatch.urgency);
+        } else if (canSpeak && bestMatch.urgency === 'info') {
+            state.lastSoundSpeak[bestMatch.label] = now;
         }
-        
-        if (text.includes('left')) {
-            speakDirection('left');
-            return;
+    }
+
+    let _soundBannerTimer = null;
+    function showSoundBanner(label) {
+        const banner = document.getElementById('soundBanner');
+        if (!banner) return;
+        banner.textContent = label;
+        banner.classList.add('visible');
+        clearTimeout(_soundBannerTimer);
+        _soundBannerTimer = setTimeout(() => {
+            banner.classList.remove('visible');
+        }, CONFIG.SOUND_BANNER_DURATION);
+    }
+
+    async function toggleSoundDetection() {
+        state.yamnetEnabled = !state.yamnetEnabled;
+        const btn = document.getElementById('btnSnd');
+        btn.classList.toggle('on', state.yamnetEnabled);
+        btn.setAttribute('aria-pressed', state.yamnetEnabled ? 'true' : 'false');
+
+        if (state.yamnetEnabled) {
+            // Request mic access
+            try {
+                state.yamnetMicStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            } catch (e) {
+                console.error('Microphone access denied for YAMNet:', e);
+                speak('Microphone access denied. Cannot detect sounds.', true);
+                state.yamnetEnabled = false;
+                btn.classList.remove('on');
+                btn.setAttribute('aria-pressed', 'false');
+                return;
+            }
+
+            // Load model (lazy — only once)
+            const ok = await loadYAMNet();
+            if (!ok) {
+                speak('Sound model failed to load. Please try again.', true);
+                state.yamnetEnabled = false;
+                btn.classList.remove('on');
+                btn.setAttribute('aria-pressed', 'false');
+                if (state.yamnetMicStream) { state.yamnetMicStream.getTracks().forEach(t => t.stop()); state.yamnetMicStream = null; }
+                return;
+            }
+
+            // Start interval
+            state.yamnetInterval = setInterval(() => {
+                if (state.isRunning && state.yamnetEnabled) runYAMNet();
+            }, CONFIG.YAMNET_INTERVAL);
+
+            speak('Sound detection on.', true);
+        } else {
+            clearInterval(state.yamnetInterval);
+            state.yamnetInterval = null;
+            if (state.yamnetMicStream) {
+                state.yamnetMicStream.getTracks().forEach(t => t.stop());
+                state.yamnetMicStream = null;
+            }
+            // Hide banner
+            const banner = document.getElementById('soundBanner');
+            if (banner) banner.classList.remove('visible');
+            speak('Sound detection off.', true);
         }
-        
-        if (text.includes('right')) {
-            speakDirection('right');
-            return;
-        }
-        
-        if (text.includes('scan') || text.includes('stair') || text.includes('door')) {
-            triggerAIScan();
-            return;
-        }
-        
-        if (text.includes('help')) {
-            showHelp();
-            return;
-        }
-        
-        speak('Say: what is around, is it safe, left, right, or scan.', true);
     }
     
     // ========== AI ANALYSIS ==========
-    // mode: 'background' = fast model, low-res (auto scans)
-    // mode: 'detailed'   = accurate model, high-res (user-triggered)
     async function analyzeWithAI(mode = 'background') {
         try {
             const canvas = document.createElement('canvas');
@@ -851,20 +1144,17 @@
             canvas.width = isDetailed ? Math.min(state.video.videoWidth || 960, 1280) : Math.min(state.video.videoWidth || 960, 960);
             canvas.height = isDetailed ? Math.min(state.video.videoHeight || 720, 960) : Math.min(state.video.videoHeight || 720, 720);
             const ctx = canvas.getContext('2d');
-            // Fill black first — prevents transparent canvas falling back to PNG on iOS
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(state.video, 0, 0, canvas.width, canvas.height);
             const imageData = canvas.toDataURL('image/jpeg', isDetailed ? 0.9 : 0.75).split(',')[1];
 
-            // Pass what local model already found so AI focuses on what it missed
             const context = state.localDetections
                 .filter(d => d.confidence >= CONFIG.HIGH_CONFIDENCE)
                 .slice(0, 5)
                 .map(d => `${d.name} ${(d.distance * 3.28084).toFixed(0)}ft ${d.position}`)
                 .join(', ');
 
-            // Race both providers — use whichever responds first
             const result = await Promise.any([
                 fetchAI(imageData, 'openai', mode, context),
                 fetchAI(imageData, 'anthropic', mode, context)
@@ -880,9 +1170,7 @@
     let _aiBackoffUntil = 0;
 
     async function fetchAI(imageData, provider, mode = 'background', context = '') {
-        // Back off if worker keeps failing (prevents hammering a broken endpoint)
         if (Date.now() < _aiBackoffUntil) return null;
-
         try {
             const response = await fetch(CONFIG.WORKER_URL, {
                 method: 'POST',
@@ -891,12 +1179,10 @@
             });
             if (!response.ok) {
                 _aiFailCount++;
-                // Exponential backoff: 10s, 20s, 40s, 60s max
                 _aiBackoffUntil = Date.now() + Math.min(10000 * Math.pow(2, _aiFailCount - 1), 60000);
-                console.warn(`AI ${provider}: ${response.status}, backing off ${Math.min(10 * Math.pow(2, _aiFailCount - 1), 60)}s`);
                 return null;
             }
-            _aiFailCount = 0;  // reset on success
+            _aiFailCount = 0;
             const data = await response.json();
             return data.result || null;
         } catch (e) {
@@ -907,7 +1193,6 @@
     }
     
     // ========== LOCAL DETECTION ==========
-    // Known real-world heights (meters) for COCO-SSD classes — used for distance triangulation
     const KNOWN_HEIGHTS = {
         person: 1.7, bicycle: 1.0, car: 1.5, motorcycle: 1.1, bus: 3.0, truck: 3.0,
         dog: 0.5, cat: 0.3, horse: 1.6, chair: 0.9, couch: 0.85, bed: 0.6,
@@ -916,84 +1201,59 @@
         suitcase: 0.7, 'potted plant': 0.5, 'sports ball': 0.22, skateboard: 0.1
     };
 
-    // Estimate camera vertical FOV from video dimensions (default ~55° for most phones)
     function getCameraFOV() { return 55 * (Math.PI / 180); }
 
-    // Distance = (realHeight * imageHeight) / (2 * bboxHeight * tan(FOV/2))
     function estimateDistance(className, bboxHeight, imageHeight) {
         const realH = KNOWN_HEIGHTS[className];
-        if (!realH || bboxHeight < 5) return null;  // unknown class or too small
+        if (!realH || bboxHeight < 5) return null;
         const fov = getCameraFOV();
         const d = (realH * imageHeight) / (2 * bboxHeight * Math.tan(fov / 2));
-        return Math.max(0.3, Math.min(d, 8.0));  // clamp 0.3m – 8m
+        return Math.max(0.3, Math.min(d, 8.0));
     }
 
-    // Auto-calibrate depth model using COCO-SSD detections.
-    // When we see a known-size object and can estimate real distance via triangulation,
-    // we learn the mapping: depth_value ↔ real_meters. This lets us convert relative
-    // depth (0-255) into approximate real distances for walls/surfaces.
     function updateDepthCalibration(detections) {
         if (!state.depthHistory.length) return;
         const latest = state.depthHistory[state.depthHistory.length - 1];
-
         for (const det of detections) {
-            // Only calibrate from ahead-facing objects with known sizes and good confidence
             if (det.position !== 'ahead' || det.confidence < 0.7) continue;
             if (!KNOWN_HEIGHTS[det.name]) continue;
             if (det.distance > 5.0 || det.distance < 0.5) continue;
-
-            // Use the center depth value since the object is ahead
             const depthVal = latest.c;
-            if (depthVal < 50 || depthVal > 240) continue;  // ignore extreme values
-
+            if (depthVal < 50 || depthVal > 240) continue;
             const cal = { depthVal, realMeters: det.distance, timestamp: Date.now() };
-
             if (!state.depthCalibration) {
                 state.depthCalibration = cal;
             } else {
-                // EMA: blend new calibration with old (alpha=0.3 for responsiveness)
                 state.depthCalibration.depthVal = state.depthCalibration.depthVal * 0.7 + depthVal * 0.3;
                 state.depthCalibration.realMeters = state.depthCalibration.realMeters * 0.7 + det.distance * 0.3;
                 state.depthCalibration.timestamp = Date.now();
             }
-            console.log(`Depth calibration: val=${state.depthCalibration.depthVal.toFixed(0)} ≈ ${(state.depthCalibration.realMeters * 3.28084).toFixed(1)}ft`);
-            break;  // one calibration per cycle
+            break;
         }
     }
 
-    // Convert a raw depth value (0-255) to approximate meters using calibration.
-    // Depth-Anything: higher value = closer. Relationship: rawValue ∝ 1/distance.
-    // So: distance = k / rawValue, where k = cal.depthVal * cal.realMeters.
     function depthToMeters(depthVal) {
         if (!state.depthCalibration) return null;
         const cal = state.depthCalibration;
-        if (depthVal < 10) return 10;  // very far
+        if (depthVal < 10) return 10;
         const k = cal.depthVal * cal.realMeters;
         return Math.max(0.2, k / depthVal);
     }
 
     async function detectLocal() {
         if (!state.model || !state.video) return [];
-
         try {
             const predictions = await state.model.detect(state.video);
-
             const vw = state.video.videoWidth || 1;
             const vh = state.video.videoHeight || 1;
             return predictions.map(p => {
                 const cx = (p.bbox[0] + p.bbox[2] / 2) / vw;
                 const cy = (p.bbox[1] + p.bbox[3] / 2) / vh;
-
-                // Position
                 let position = 'ahead';
                 if (cx < 0.35) position = 'left';
                 else if (cx > 0.65) position = 'right';
-
-                // Distance: use known-object triangulation if available,
-                // fall back to crude bbox-size estimate
                 let distance = estimateDistance(p.class, p.bbox[3], vh);
                 if (distance === null) {
-                    // Fallback for unknown objects
                     const size = Math.max(p.bbox[2], p.bbox[3]) / Math.max(vw, vh);
                     if (size > 0.6) distance = 0.5;
                     else if (size > 0.45) distance = 1.0;
@@ -1002,147 +1262,73 @@
                     else if (size > 0.1) distance = 3.0;
                     else distance = 4.0;
                 }
-
-                // Is it in the walking path?
                 const inPath = cx > 0.25 && cx < 0.75 && cy > 0.3;
-
-                // Danger level
                 let danger = 'low';
                 if (CONFIG.CRITICAL.includes(p.class)) danger = 'critical';
                 else if (CONFIG.OBSTACLES.includes(p.class)) danger = 'obstacle';
-
-                return {
-                    name: p.class,
-                    position: position,
-                    distance: distance,
-                    inPath: inPath,
-                    danger: danger,
-                    confidence: p.score
-                };
+                return { name: p.class, position, distance, inPath, danger, confidence: p.score };
             }).filter(d => d.confidence >= CONFIG.HIGH_CONFIDENCE);
-        } catch (e) {
-            return [];
-        }
+        } catch (e) { return []; }
     }
     
-    // ========== HELPER: Get display name based on confidence ==========
     function getDisplayName(detection) {
-        if (detection.confidence >= CONFIG.HIGH_CONFIDENCE) {
-            return detection.name;
-        } else {
-            return 'obstacle';
-        }
+        return detection.confidence >= CONFIG.HIGH_CONFIDENCE ? detection.name : 'obstacle';
     }
 
-    // ========== PARSE AI RESPONSE INTO STRUCTURED HAZARD ==========
     function parseAIResult(text) {
         const lower = text.toLowerCase();
-
-        // Path clear — reset AI hazard
-        if (/path\s*clear|no\s*hazard|all\s*clear|nothing|safe\s*to\s*proceed/.test(lower)) {
-            return { level: 'clear' };
-        }
-
-        // DANGER: stairs / drop-offs (falling hazard — highest priority)
-        if (/stair|step\s*down|steps\s*down|drop.?off|ledge|descend|going\s*down/.test(lower)) {
-            return { level: 'danger', key: 'stairs', label: 'STAIRS', uiDetail: 'Stop — stairs or drop-off',
-                speak: 'Stairs ahead. Stop.' };
-        }
-
-        // DANGER: moving vehicles / cyclists
+        if (/path\s*clear|no\s*hazard|all\s*clear|nothing|safe\s*to\s*proceed/.test(lower)) return { level: 'clear' };
+        if (/stair|step\s*down|steps\s*down|drop.?off|ledge|descend|going\s*down/.test(lower))
+            return { level: 'danger', key: 'stairs', label: 'STAIRS', uiDetail: 'Stop — stairs or drop-off', speak: 'Stairs ahead. Stop.' };
         if (/\b(car|vehicle|truck|bus|cyclist|bicycle|motorbike|motorcycle)\b.*approach|moving|coming/.test(lower) ||
-            /approach.*\b(car|vehicle|truck|bus|cyclist)\b/.test(lower)) {
-            return { level: 'danger', key: 'vehicle', label: 'VEHICLE', uiDetail: 'Moving vehicle nearby',
-                speak: 'Vehicle approaching! Be careful!' };
-        }
-
-        // WARNING: wall / dead end / blocked path
-        if (/wall|dead.?end|blocked|barrier|partition|fence|closed\s*off|no\s*through|path\s*end|surface\s*ahead|end\s*of\s*(path|corridor|hall|room)|solid\s*surface|obstruct|no\s*path|nowhere\s*to\s*go|path\s*(is\s*)?(block|obstruct|close)|walking\s*(into|toward)\s*(a\s*)?(wall|surface|struct)/.test(lower)) {
-            return { level: 'warning', key: 'wall', label: 'WALL/BLOCKED', uiDetail: 'Wall or blocked path ahead',
-                speak: 'Wall ahead. Slow down.' };
-        }
-
-        // WARNING: step up / curb / raised surface
-        if (/step\s*up|curb|kerb|raised|bump|threshold/.test(lower)) {
-            return { level: 'warning', key: 'step_up', label: 'STEP UP', uiDetail: 'Step or curb ahead',
-                speak: 'Step up ahead.' };
-        }
-
-        // WARNING: wet / slippery
-        if (/wet|slippery|icy|ice|puddle|spill|damp/.test(lower)) {
-            return { level: 'warning', key: 'wet', label: 'WET FLOOR', uiDetail: 'Slippery surface',
-                speak: 'Caution — wet or slippery floor.' };
-        }
-
-        // WARNING: narrow passage
-        if (/narrow|tight\s*gap|squeeze|low\s*ceiling|low\s*beam|head.?height|duck/.test(lower)) {
-            return { level: 'warning', key: 'narrow', label: 'NARROW', uiDetail: 'Narrow or low clearance',
-                speak: 'Narrow passage or low obstacle ahead.' };
-        }
-
-        // INFO: door (open doors are navigable — just announce)
-        if (/door|doorway|entrance|exit|gateway|gate/.test(lower)) {
-            return { level: 'info', key: 'door', label: 'DOOR', uiDetail: 'Door or entrance ahead',
-                speak: 'Door ahead.' };
-        }
-
-        // Anything else the AI flags as a hazard
+            /approach.*\b(car|vehicle|truck|bus|cyclist)\b/.test(lower))
+            return { level: 'danger', key: 'vehicle', label: 'VEHICLE', uiDetail: 'Moving vehicle nearby', speak: 'Vehicle approaching! Be careful!' };
+        if (/wall|dead.?end|blocked|barrier|partition|fence/.test(lower))
+            return { level: 'warning', key: 'wall', label: 'WALL/BLOCKED', uiDetail: 'Wall or blocked path ahead', speak: 'Wall ahead. Slow down.' };
+        if (/step\s*up|curb|kerb|raised|bump|threshold/.test(lower))
+            return { level: 'warning', key: 'step_up', label: 'STEP UP', uiDetail: 'Step or curb ahead', speak: 'Step up ahead.' };
+        if (/wet|slippery|icy|ice|puddle|spill|damp/.test(lower))
+            return { level: 'warning', key: 'wet', label: 'WET FLOOR', uiDetail: 'Slippery surface', speak: 'Caution — wet or slippery floor.' };
+        if (/narrow|tight\s*gap|squeeze|low\s*ceiling|low\s*beam|head.?height|duck/.test(lower))
+            return { level: 'warning', key: 'narrow', label: 'NARROW', uiDetail: 'Narrow or low clearance', speak: 'Narrow passage or low obstacle ahead.' };
+        if (/door|doorway|entrance|exit|gateway|gate/.test(lower))
+            return { level: 'info', key: 'door', label: 'DOOR', uiDetail: 'Door or entrance ahead', speak: 'Door ahead.' };
         if (/hazard|caution|careful|danger|obstacle|object|block/.test(lower)) {
             const shortText = text.length < 80 ? text : 'Hazard detected ahead.';
-            return { level: 'warning', key: 'hazard', label: 'HAZARD', uiDetail: shortText,
-                speak: shortText };
+            return { level: 'warning', key: 'hazard', label: 'HAZARD', uiDetail: shortText, speak: shortText };
         }
-
-        return { level: 'info', key: 'ai_note', label: 'AI', uiDetail: text,
-            speak: text.length < 80 ? text : '' };
+        return { level: 'info', key: 'ai_note', label: 'AI', uiDetail: text, speak: text.length < 80 ? text : '' };
     }
     
     // ========== DEPTH ESTIMATION ==========
-    // Strategy: try LiDAR via WebXR first (iPhone 12 Pro+), fall back to Transformers.js model.
-    // LiDAR gives real hardware depth at 60fps with zero download — far superior on Pro iPhones.
-
     async function initDepthModel() {
         const badge = document.getElementById('aiBadge');
         if (badge) badge.textContent = 'Starting depth sensor…';
 
-        // ── ATTEMPT 1: WebXR Depth API (LiDAR on iPhone Pro, no model download) ──────────
         if (navigator.xr) {
             try {
                 const supported = await navigator.xr.isSessionSupported('immersive-ar');
                 if (supported) {
-                    // Request AR session with depth sensing
                     const session = await navigator.xr.requestSession('immersive-ar', {
                         requiredFeatures: ['depth-sensing'],
-                        depthSensing: {
-                            usagePreference: ['cpu-optimized'],
-                            dataFormatPreference: ['luminance-alpha']
-                        }
+                        depthSensing: { usagePreference: ['cpu-optimized'], dataFormatPreference: ['luminance-alpha'] }
                     });
-
                     state.xrSession = session;
-                    state.xrDepthActive = false; // set true once we get first frame
-
+                    state.xrDepthActive = false;
                     const gl = document.createElement('canvas').getContext('webgl2', { xrCompatible: true })
                             || document.createElement('canvas').getContext('webgl', { xrCompatible: true });
-
                     if (gl) {
                         await gl.makeXRCompatible?.();
                         const layer = new XRWebGLLayer(session, gl);
                         session.updateRenderState({ baseLayer: layer });
-
                         const refSpace = await session.requestReferenceSpace('local');
-
                         session.requestAnimationFrame(function onXRFrame(t, frame) {
                             if (!state.isRunning) { session.end(); return; }
                             session.requestAnimationFrame(onXRFrame);
-
                             const depthInfo = frame.getDepthInformation?.(frame.getViewerPose(refSpace)?.views[0]);
                             if (!depthInfo) return;
-
                             state.xrDepthActive = true;
                             const w = depthInfo.width, h = depthInfo.height;
-
-                            // Sample center, left, right strips (metres)
                             let cSum = 0, cN = 0, lSum = 0, lN = 0, rSum = 0, rN = 0;
                             const yStart = Math.floor(h * 0.2), yEnd = Math.floor(h * 0.8);
                             for (let y = yStart; y < yEnd; y++) {
@@ -1151,18 +1337,15 @@
                                     if (!isFinite(d) || d <= 0) continue;
                                     const fx = x / w;
                                     if (fx > 0.30 && fx < 0.70) { cSum += d; cN++; }
-                                    else if (fx < 0.22)          { lSum += d; lN++; }
-                                    else if (fx > 0.78)          { rSum += d; rN++; }
+                                    else if (fx < 0.22) { lSum += d; lN++; }
+                                    else if (fx > 0.78) { rSum += d; rN++; }
                                 }
                             }
-
                             const c = cN > 0 ? cSum / cN : 5;
                             const l = lN > 0 ? lSum / lN : 5;
                             const r = rN > 0 ? rSum / rN : 5;
-
                             state.depthHistory.push({ c, l, r, lidar: true });
                             if (state.depthHistory.length > 6) state.depthHistory.shift();
-
                             const hazard = computeLiDARHazard(c, l, r);
                             if (hazard) {
                                 const ttl = hazard.level === 'danger' ? 1200 : 900;
@@ -1174,46 +1357,35 @@
                                 }
                             }
                         });
-
-                        // Give it 3s to get first frame; if no depth data, fall through to model
                         await new Promise(r => setTimeout(r, 3000));
                     }
-
                     if (state.xrDepthActive) {
                         if (badge) badge.textContent = 'AI + LiDAR Active';
-                        console.log('WebXR LiDAR depth active');
-                        return; // success — don't load Transformers.js
+                        return;
                     } else {
-                        // Session started but no depth frames — device lacks LiDAR
                         session.end().catch(() => {});
                         state.xrSession = null;
-                        console.warn('WebXR AR started but no depth data — device may lack LiDAR');
                     }
                 }
-            } catch (e) {
-                console.warn('WebXR depth not available:', e.message || e);
-            }
+            } catch (e) { console.warn('WebXR depth not available:', e.message || e); }
         }
 
-        // ── ATTEMPT 2: Transformers.js Depth-Anything model (all devices) ────────────────
         if (badge) badge.textContent = 'Loading depth model…';
-
         const loaded = await new Promise(resolve => {
             if (window.__txPipeline) { resolve(true); return; }
             const onOk   = () => { cleanup(); resolve(true); };
             const onFail = () => { cleanup(); resolve(false); };
             const timer  = setTimeout(() => { cleanup(); resolve(false); }, 30000);
             const cleanup = () => {
-                window.removeEventListener('tx-ready',  onOk);
+                window.removeEventListener('tx-ready', onOk);
                 window.removeEventListener('tx-failed', onFail);
                 clearTimeout(timer);
             };
-            window.addEventListener('tx-ready',  onOk,  { once: true });
+            window.addEventListener('tx-ready', onOk, { once: true });
             window.addEventListener('tx-failed', onFail, { once: true });
         });
 
         if (!loaded || !window.__txPipeline) {
-            console.error('Depth: Transformers.js did not load');
             if (badge) badge.textContent = 'AI Active';
             return;
         }
@@ -1226,239 +1398,124 @@
                 'depth-estimation', 'Xenova/depth-anything-small-hf', { quantized: true }
             );
             if (badge) badge.textContent = 'AI + Depth Active';
-            console.log('Transformers.js depth model ready');
         } catch (e) {
             console.error('Depth model failed:', e.message || e);
             if (badge) badge.textContent = 'AI Active';
         }
     }
 
-    // LiDAR hazard: distances are real metres — use absolute thresholds
     function computeLiDARHazard(c, l, r) {
         const hist = state.depthHistory;
         if (hist.length < 2) return null;
-
-        // Absolute distance thresholds (real metres from LiDAR)
         const ft = (c * 3.28084).toFixed(1);
-        if (c <= 0.4) return { level: 'danger', key: 'lidar_critical',
-            label: 'STOP', speak: 'Stop now', uiDetail: `${ft} ft ahead`, fromDepth: true };
-        if (c <= 1.0) return { level: 'danger', key: 'lidar_close',
-            label: 'OBSTACLE CLOSE', speak: 'Stop', uiDetail: `${ft} ft ahead`, fromDepth: true };
-        if (c <= 2.0) return { level: 'warning', key: 'lidar_near',
-            label: 'OBSTACLE AHEAD', speak: 'Slow', uiDetail: `${ft} ft ahead`, fromDepth: true };
-
-        // Approaching: getting closer by ≥8cm since last reading, within 3m
+        if (c <= 0.4) return { level: 'danger', key: 'lidar_critical', label: 'STOP', speak: 'Stop now', uiDetail: `${ft} ft ahead`, fromDepth: true };
+        if (c <= 1.0) return { level: 'danger', key: 'lidar_close', label: 'OBSTACLE CLOSE', speak: 'Stop', uiDetail: `${ft} ft ahead`, fromDepth: true };
+        if (c <= 2.0) return { level: 'warning', key: 'lidar_near', label: 'OBSTACLE AHEAD', speak: 'Slow', uiDetail: `${ft} ft ahead`, fromDepth: true };
         const prev = hist[hist.length - 2];
-        if (prev.lidar && c < prev.c - 0.08 && c < 3.0) {
-            return { level: 'warning', key: 'lidar_approach',
-                label: 'APPROACHING', speak: 'Ahead', uiDetail: `Approaching ${ft} ft`, fromDepth: true };
-        }
-
+        if (prev.lidar && c < prev.c - 0.08 && c < 3.0)
+            return { level: 'warning', key: 'lidar_approach', label: 'APPROACHING', speak: 'Ahead', uiDetail: `Approaching ${ft} ft`, fromDepth: true };
         return null;
     }
 
     async function runDepthDetection() {
-        // LiDAR runs via XR animation frame — nothing to do here
         if (state.xrDepthActive) return null;
         if (!state.depthPipeline || !state.video || state.video.videoWidth === 0) return null;
-
         try {
             const canvas = document.createElement('canvas');
             canvas.width = 256; canvas.height = 256;
             canvas.getContext('2d').drawImage(state.video, 0, 0, 256, 256);
-
             const { depth } = await state.depthPipeline(canvas.toDataURL('image/jpeg', 0.6));
             const data = depth.data, w = depth.width, h = depth.height, ch = depth.channels || 1;
-
             let cSum = 0, cN = 0, lSum = 0, lN = 0, rSum = 0, rN = 0;
             for (let y = Math.floor(h * 0.15); y < Math.floor(h * 0.85); y++) {
                 for (let x = 0; x < w; x++) {
                     const v = data[(y * w + x) * ch];
                     const fx = x / w;
                     if (fx > 0.30 && fx < 0.70) { cSum += v; cN++; }
-                    else if (fx < 0.22)          { lSum += v; lN++; }
-                    else if (fx > 0.78)          { rSum += v; rN++; }
+                    else if (fx < 0.22) { lSum += v; lN++; }
+                    else if (fx > 0.78) { rSum += v; rN++; }
                 }
             }
-
             const c = cN > 0 ? cSum / cN : 128;
             const l = lN > 0 ? lSum / lN : 128;
             const r = rN > 0 ? rSum / rN : 128;
-
             state.depthHistory.push({ c, l, r });
             if (state.depthHistory.length > 6) state.depthHistory.shift();
-
             return computeDepthHazard(c, l, r);
-        } catch (e) {
-            console.warn('Depth scan error:', e);
-            return null;
-        }
+        } catch (e) { console.warn('Depth scan error:', e); return null; }
     }
 
-    // Depth hazard detection — uses calibrated meters when available, raw values as fallback.
     function computeDepthHazard(c, l, r) {
         const hist = state.depthHistory;
         if (hist.length < 2) return null;
-
-        // ── APPROACH RATE: works without calibration ──────────────────────────────
-        // Only triggers if depth is rising FAST and CONSISTENTLY across 3+ frames.
-        // Higher thresholds prevent false triggers from camera exposure drift.
         if (hist.length >= 4) {
-            const h0 = hist[hist.length - 4];  // 3 frames ago
+            const h0 = hist[hist.length - 4];
             const h1 = hist[hist.length - 3];
             const h2 = hist[hist.length - 2];
-            // current = c (already defined above)
             const avgRate = (c - h0.c) / 3;
-            // Require each consecutive pair to be rising (not just endpoints)
             const rising = (h1.c > h0.c + 1) && (h2.c > h1.c + 1) && (c > h2.c + 1);
-            if (rising && avgRate > 15) {
-                return { level: 'danger', key: 'depth_approaching_fast',
-                    label: 'APPROACHING FAST', speak: 'Stop',
-                    uiDetail: 'Something approaching quickly', fromDepth: true };
-            }
-            if (rising && avgRate > 8) {
-                return { level: 'warning', key: 'depth_approaching',
-                    label: 'APPROACHING', speak: 'Slow',
-                    uiDetail: 'Something getting closer', fromDepth: true };
-            }
+            if (rising && avgRate > 15) return { level: 'danger', key: 'depth_approaching_fast', label: 'APPROACHING FAST', speak: 'Stop', uiDetail: 'Something approaching quickly', fromDepth: true };
+            if (rising && avgRate > 8)  return { level: 'warning', key: 'depth_approaching', label: 'APPROACHING', speak: 'Slow', uiDetail: 'Something getting closer', fromDepth: true };
         }
-
-        // ── CALIBRATED DISTANCE (when we have a reference from COCO-SSD) ─────────
         const cMeters = depthToMeters(c);
         if (cMeters !== null) {
             const cFt = (cMeters * 3.28084).toFixed(1);
-            if (cMeters < 1.0) {
-                return { level: 'danger', key: 'depth_close',
-                    label: 'VERY CLOSE', speak: 'Stop',
-                    uiDetail: `${cFt} ft ahead`, fromDepth: true };
-            }
-            if (cMeters < 1.8) {
-                return { level: 'danger', key: 'depth_danger',
-                    label: 'CLOSE', speak: 'Stop',
-                    uiDetail: `${cFt} ft ahead`, fromDepth: true };
-            }
-            if (cMeters < 3.0) {
-                return { level: 'warning', key: 'depth_warn',
-                    label: 'OBSTACLE AHEAD', speak: 'Slow',
-                    uiDetail: `${cFt} ft ahead`, fromDepth: true };
-            }
+            if (cMeters < 1.0) return { level: 'danger', key: 'depth_close', label: 'VERY CLOSE', speak: 'Stop', uiDetail: `${cFt} ft ahead`, fromDepth: true };
+            if (cMeters < 1.8) return { level: 'danger', key: 'depth_danger', label: 'CLOSE', speak: 'Stop', uiDetail: `${cFt} ft ahead`, fromDepth: true };
+            if (cMeters < 3.0) return { level: 'warning', key: 'depth_warn', label: 'OBSTACLE AHEAD', speak: 'Slow', uiDetail: `${cFt} ft ahead`, fromDepth: true };
             return null;
         }
-
-        // ── UNCALIBRATED FALLBACK (raw 0-255 values) ─────────────────────────────
-        // Wall at 3ft reads ~160-190, at 5ft reads ~120-140, at 8ft+ reads ~80-100.
         const scene = (c + l + r) / 3;
         if (scene < 1) return null;
-
-        // Center zone (catches walls head-on)
-        // Values vary wildly per phone/lighting — use aggressive thresholds
-        if (c > 110) {
-            return { level: 'danger', key: 'depth_close',
-                label: 'WALL/OBSTACLE', speak: 'Stop',
-                uiDetail: `Close ahead (c:${c.toFixed(0)})`, fromDepth: true };
-        }
-        if (c > 85) {
-            return { level: 'warning', key: 'depth_near',
-                label: 'OBSTACLE', speak: 'Slow',
-                uiDetail: `Obstacle ahead`, fromDepth: true };
-        }
-
-
-        // Center deviation (isolated obstacles)
+        if (c > 110) return { level: 'danger', key: 'depth_close', label: 'WALL/OBSTACLE', speak: 'Stop', uiDetail: `Close ahead (c:${c.toFixed(0)})`, fromDepth: true };
+        if (c > 85)  return { level: 'warning', key: 'depth_near', label: 'OBSTACLE', speak: 'Slow', uiDetail: `Obstacle ahead`, fromDepth: true };
         const cRatio = c / scene;
         const sideAvg = ((l + r) / 2) / scene;
         const deviation = cRatio - sideAvg;
-
-        if (deviation > 0.35) {
-            return { level: 'danger', key: 'depth_center',
-                label: 'OBSTACLE', speak: 'Stop',
-                uiDetail: 'Obstacle directly ahead', fromDepth: true };
-        }
-        if (deviation > 0.20) {
-            return { level: 'warning', key: 'depth_center_warn',
-                label: 'OBSTACLE AHEAD', speak: 'Slow',
-                uiDetail: 'Obstacle in path', fromDepth: true };
-        }
-
+        if (deviation > 0.35) return { level: 'danger', key: 'depth_center', label: 'OBSTACLE', speak: 'Stop', uiDetail: 'Obstacle directly ahead', fromDepth: true };
+        if (deviation > 0.20) return { level: 'warning', key: 'depth_center_warn', label: 'OBSTACLE AHEAD', speak: 'Slow', uiDetail: 'Obstacle in path', fromDepth: true };
         return null;
     }
 
-    // ========== FAST WALL DETECTOR (no ML — pure pixel math, <5ms) ==========
-    // A wall/surface close to the camera fills the frame with uniform color.
-    // Open space has edges, texture variation, multiple colors.
-    // We measure the variance of pixel brightness in the center strip —
-    // low variance = flat surface = wall. Runs every loop cycle instantly.
+    // ========== FAST WALL DETECTOR ==========
     function fastWallCheck() {
         if (!state.video || state.video.videoWidth === 0) return null;
-
-        // Reuse a tiny canvas — 64x48 is plenty for variance calculation
         if (!state._wallCanvas) {
             state._wallCanvas = document.createElement('canvas');
             state._wallCanvas.width = 64;
             state._wallCanvas.height = 48;
             state._wallCtx = state._wallCanvas.getContext('2d', { willReadFrequently: true });
         }
-
         try {
             const ctx = state._wallCtx;
             ctx.drawImage(state.video, 0, 0, 64, 48);
             const img = ctx.getImageData(0, 0, 64, 48);
             const d = img.data;
-
-            // Sample center strip (middle 50% width, middle 60% height)
-            let sum = 0, sumSq = 0, n = 0;
-            let edgeCount = 0;
-            const xStart = 16, xEnd = 48;  // center 50%
-            const yStart = 10, yEnd = 38;  // center 60%
-
+            let sum = 0, sumSq = 0, n = 0, edgeCount = 0;
+            const xStart = 16, xEnd = 48, yStart = 10, yEnd = 38;
             for (let y = yStart; y < yEnd; y++) {
                 for (let x = xStart; x < xEnd; x++) {
                     const i = (y * 64 + x) * 4;
                     const brightness = d[i] * 0.299 + d[i+1] * 0.587 + d[i+2] * 0.114;
-                    sum += brightness;
-                    sumSq += brightness * brightness;
-                    n++;
-
-                    // Count edges: big brightness jump to neighbor = edge
+                    sum += brightness; sumSq += brightness * brightness; n++;
                     if (x > xStart) {
                         const prev = d[i-4] * 0.299 + d[i-3] * 0.587 + d[i-2] * 0.114;
                         if (Math.abs(brightness - prev) > 30) edgeCount++;
                     }
                 }
             }
-
             const mean = sum / n;
             const variance = (sumSq / n) - (mean * mean);
             const edgeRatio = edgeCount / n;
-
-            // Low variance + few edges = flat uniform surface = wall
-            // Typical values: wall variance 50-200, open room 500-2000+
-            // Edge ratio: wall <0.05, open space >0.15
-            if (variance < 150 && edgeRatio < 0.06) {
-                return { level: 'danger', key: 'wall_fast',
-                    label: 'WALL', speak: 'Stop',
-                    uiDetail: `Wall detected (v:${variance.toFixed(0)} e:${edgeRatio.toFixed(2)})`,
-                    fromDepth: true };
-            }
-            if (variance < 350 && edgeRatio < 0.10) {
-                return { level: 'warning', key: 'wall_fast',
-                    label: 'OBSTACLE', speak: 'Slow',
-                    uiDetail: `Obstacle ahead`,
-                    fromDepth: true };
-            }
-
+            if (variance < 150 && edgeRatio < 0.06) return { level: 'danger', key: 'wall_fast', label: 'WALL', speak: 'Stop', uiDetail: `Wall detected (v:${variance.toFixed(0)} e:${edgeRatio.toFixed(2)})`, fromDepth: true };
+            if (variance < 350 && edgeRatio < 0.10) return { level: 'warning', key: 'wall_fast', label: 'OBSTACLE', speak: 'Slow', uiDetail: `Obstacle ahead`, fromDepth: true };
             return null;
-        } catch (e) {
-            return null;
-        }
+        } catch (e) { return null; }
     }
 
-    // ========== FAST HAZARD LOOP (50ms — SOLE owner of UI + speech) ==========
-    // Main loop only sets data (detections, hazards). This loop reads that data
-    // and controls ALL visual + audio output. No other code touches UI.
+    // ========== FAST HAZARD LOOP (50ms) ==========
     let _fastLoopRunning = false;
     let _lastFastThreat = 'safe';
-    let _lastFastSpeech = 0;
 
     function fastHazardLoop() {
         if (_fastLoopRunning) return;
@@ -1471,21 +1528,14 @@
         }
 
         const now = Date.now();
-        let threat = 'safe';
-        let label = '';
-        let detail = '';
-        let pos = 'ahead';
+        let threat = 'safe', label = '', detail = '', pos = 'ahead';
 
-        // 1. Pixel-variance wall check (<3ms)
         const wallResult = fastWallCheck();
         if (wallResult) {
             state.depthHazard = { ...wallResult, expiry: now + 800 };
-            threat = wallResult.level;
-            label = wallResult.label;
-            detail = wallResult.uiDetail;
+            threat = wallResult.level; label = wallResult.label; detail = wallResult.uiDetail;
         }
 
-        // 2. Cached depth values (<1ms)
         if (threat === 'safe' && state.depthHistory.length >= 2) {
             const last = state.depthHistory[state.depthHistory.length - 1];
             if (!last.lidar) {
@@ -1497,7 +1547,6 @@
             }
         }
 
-        // 3. Active hazards from depth model + AI cloud
         if (threat === 'safe') {
             for (const hz of [state.depthHazard, state.aiHazard]) {
                 if (!hz || now > hz.expiry) continue;
@@ -1506,7 +1555,6 @@
             }
         }
 
-        // 4. COCO-SSD results from main loop
         if (threat === 'safe' && state._mainThreat && state._mainThreat !== 'safe' && state.currentObstacle) {
             threat = state._mainThreat;
             const ob = state.currentObstacle;
@@ -1515,7 +1563,6 @@
             pos = ob.position || 'ahead';
         }
 
-        // ── UI UPDATE (every 50ms — always in sync, no distance shown) ──
         const cleanLabel = label.replace(/ ahead$/i, '');
         if (threat === 'danger') {
             updateUI('danger', '!', `STOP! ${cleanLabel}!`, '');
@@ -1528,10 +1575,8 @@
             updateDirections(null, 'safe');
         }
 
-        // ── AUDIO (announce every safety level change) ──
         if (!state.isPaused) {
             const changed = threat !== _lastFastThreat;
-
             if (changed) {
                 if (threat === 'danger') {
                     speakAlert('fast_danger', `Watch out. ${cleanLabel}.`, 3);
@@ -1544,25 +1589,22 @@
                 } else if (threat === 'safe') {
                     speakAlert('fast_safe', 'Path clear.', 1);
                 }
-                _lastFastSpeech = now;
             }
         }
 
         _lastFastThreat = threat;
         state.currentStatus = threat;
-
         _fastLoopRunning = false;
         setTimeout(fastHazardLoop, 50);
     }
 
     // ========== MAIN PROTECTION LOOP ==========
-    // Smoothing: escalate instantly, require 2 consecutive safe readings to de-escalate.
     let _threatHistory = [];
     const SAFE_CONFIRM_COUNT = 2;
-    let _loopRunning = false;  // prevents multiple protectionLoop instances
+    let _loopRunning = false;
 
     async function protectionLoop() {
-        if (_loopRunning) return;  // prevent duplicate loops
+        if (_loopRunning) return;
         _loopRunning = true;
 
         if (!state.isRunning) {
@@ -1573,92 +1615,49 @@
 
         const now = Date.now();
 
-        // Wall check now runs in fastHazardLoop (50ms) — not here
-
-        // LOCAL DETECTION — time it
         const t0 = performance.now();
         state.localDetections = await detectLocal();
-        const detectMs = Math.round(performance.now() - t0);
 
-        // Auto-calibrate depth from detected objects
         updateDepthCalibration(state.localDetections);
 
-        // Find most dangerous local obstacle
         let mostDangerous = null;
         let rawThreat = 'safe';
 
         for (const det of state.localDetections) {
             if (!det.inPath) continue;
-
             if (det.distance < CONFIG.DANGER_ZONE) {
-                if (!mostDangerous || det.distance < mostDangerous.distance) {
-                    mostDangerous = det;
-                    rawThreat = 'danger';
-                }
+                if (!mostDangerous || det.distance < mostDangerous.distance) { mostDangerous = det; rawThreat = 'danger'; }
             } else if (det.distance < CONFIG.WARNING_ZONE && rawThreat !== 'danger') {
-                if (!mostDangerous || det.distance < mostDangerous.distance) {
-                    mostDangerous = det;
-                    rawThreat = 'warning';
-                }
+                if (!mostDangerous || det.distance < mostDangerous.distance) { mostDangerous = det; rawThreat = 'warning'; }
             }
         }
 
-        // Temporal smoothing: escalate instantly, de-escalate after 2 consecutive safe readings.
         _threatHistory.push(rawThreat);
         if (_threatHistory.length > 5) _threatHistory.shift();
 
         let highestThreat;
         if (rawThreat === 'danger' || rawThreat === 'warning') {
-            highestThreat = rawThreat;  // escalate immediately — no delay
+            highestThreat = rawThreat;
         } else {
-            // Only go to safe if last 3 readings were ALL safe
             const recent = _threatHistory.slice(-SAFE_CONFIRM_COUNT);
             const allSafe = recent.length >= SAFE_CONFIRM_COUNT && recent.every(t => t === 'safe');
             highestThreat = allSafe ? 'safe' : (state.currentStatus || 'safe');
         }
 
-        // MERGE depth + AI hazards into threat level BEFORE UI update.
-        // Check hazards exist and haven't expired. Order: merge first, expire after.
         for (const hz of [state.depthHazard, state.aiHazard]) {
             if (!hz || now > hz.expiry) continue;
             if (hz.level === 'danger' && highestThreat !== 'danger') {
                 highestThreat = 'danger';
-                if (!mostDangerous) {
-                    mostDangerous = { name: hz.key, position: 'ahead', distance: 0.8,
-                        inPath: true, confidence: 1.0, danger: 'obstacle', fromAI: true,
-                        displayLabel: hz.label, uiDetail: hz.uiDetail };
-                }
+                if (!mostDangerous) mostDangerous = { name: hz.key, position: 'ahead', distance: 0.8, inPath: true, confidence: 1.0, danger: 'obstacle', fromAI: true, displayLabel: hz.label, uiDetail: hz.uiDetail };
             } else if (hz.level === 'warning' && highestThreat === 'safe') {
                 highestThreat = 'warning';
-                if (!mostDangerous) {
-                    mostDangerous = { name: hz.key, position: 'ahead', distance: 1.5,
-                        inPath: true, confidence: 1.0, danger: 'obstacle', fromAI: true,
-                        displayLabel: hz.label, uiDetail: hz.uiDetail };
-                }
+                if (!mostDangerous) mostDangerous = { name: hz.key, position: 'ahead', distance: 1.5, inPath: true, confidence: 1.0, danger: 'obstacle', fromAI: true, displayLabel: hz.label, uiDetail: hz.uiDetail };
             }
         }
 
-        // EXPIRE stale hazards (after merge, so they're used one last time)
         if (state.aiHazard && now > state.aiHazard.expiry) state.aiHazard = null;
         if (state.depthHazard && now > state.depthHazard.expiry) state.depthHazard = null;
 
-        // Debug info
-        const dbg = document.getElementById('debugInfo');
-        if (dbg) {
-            const objs = state.localDetections.map(d =>
-                `${d.name}(${(d.distance*3.28084).toFixed(0)}ft ${d.position})`
-            ).join(', ') || 'none';
-            const depthStatus = state.xrDepthActive ? 'LiDAR' : state.depthPipeline ? 'model' : 'loading...';
-            const depthHist = state.depthHistory.length > 0 ? state.depthHistory[state.depthHistory.length-1] : null;
-            const depthStr = depthHist ? `c:${depthHist.c.toFixed?.(0) ?? depthHist.c}` : 'no data';
-            const calStr = state.depthCalibration
-                ? `cal:${depthToMeters(depthHist?.c || 0)?.toFixed(1) ?? '?'}m`
-                : 'uncal';
-            const dhz = state.depthHazard ? state.depthHazard.level[0] : '-';
-            dbg.textContent = `det:${detectMs}ms ${state.localDetections.length}obj | ${depthStatus} ${depthStr} ${calStr} dh:${dhz} | ${rawThreat}→${highestThreat}`;
-        }
-
-        // DEPTH SCAN — fire async to refresh cache (no UI/speech — fast loop handles that)
         if (state.depthPipeline && now - state.lastDepthScan > CONFIG.DEPTH_SCAN_INTERVAL) {
             state.lastDepthScan = now;
             runDepthDetection().then(hazard => {
@@ -1668,33 +1667,21 @@
             });
         }
 
-        // AI SCAN — fire async, set hazard (no UI/speech — fast loop handles that)
         if (now - state.lastAIScan > CONFIG.AI_SCAN_INTERVAL && !state.isPaused && !state.aiScanInProgress) {
             state.lastAIScan = now;
             state.aiScanInProgress = true;
-
             analyzeWithAI('guide').then(result => {
                 state.aiScanInProgress = false;
                 if (!result) return;
                 state.aiResult = result;
                 const hazard = parseAIResult(result);
-
-                if (hazard.level === 'clear') {
-                    state.aiHazard = null;
-                    return;
-                }
-
+                if (hazard.level === 'clear') { state.aiHazard = null; return; }
                 const ttl = hazard.level === 'danger' ? 4000 : 3000;
                 state.aiHazard = { ...hazard, expiry: Date.now() + ttl };
-
-                // Speak cloud AI results directly — it's our guide on web
-                if (hazard.speak) {
-                    speakAlert(hazard.key, hazard.speak, hazard.level === 'danger' ? 3 : 2);
-                }
+                if (hazard.speak) speakAlert(hazard.key, hazard.speak, hazard.level === 'danger' ? 3 : 2);
             }).catch(() => { state.aiScanInProgress = false; });
         }
 
-        // Store COCO-SSD threat for fast loop to pick up (no UI here)
         state._mainThreat = highestThreat;
         state.currentObstacle = mostDangerous;
 
@@ -1709,10 +1696,8 @@
         const iconEl = document.getElementById('alertIcon');
         const textEl = document.getElementById('alertText');
         const detailEl = document.getElementById('alertDetail');
-        
         badge.className = `status-badge badge-${status}`;
         badge.textContent = status === 'safe' ? 'SAFE' : status === 'warning' ? 'CAUTION' : 'DANGER';
-        
         box.className = `alert-box ${status}`;
         iconEl.textContent = icon;
         textEl.textContent = text;
@@ -1720,11 +1705,9 @@
     }
     
     function updateDirections(position, status) {
-        const dirs = ['Left', 'Ahead', 'Right'];
-        dirs.forEach(d => {
+        ['Left', 'Ahead', 'Right'].forEach(d => {
             const el = document.getElementById(`dir${d}`);
             el.className = 'direction-btn';
-            
             if (position === d.toLowerCase() || (position === 'ahead' && d === 'Ahead')) {
                 el.classList.add('active');
                 if (status === 'danger') el.classList.add('danger');
@@ -1735,21 +1718,13 @@
     // ========== USER ACTIONS ==========
     async function describeArea() {
         speak('Scanning surroundings...', true);
-
         const result = await analyzeWithAI('detailed');
         if (result) {
             speak(result, true);
         } else if (state.localDetections.length > 0) {
-            const items = state.localDetections
-                .filter(d => d.confidence >= CONFIG.HIGH_CONFIDENCE)
-                .slice(0, 3)
-                .map(d => `${d.name} ${d.position}`)
-                .join(', ');
-            if (items) {
-                speak(`I see: ${items}`, true);
-            } else {
-                speak('Objects detected but not clearly identified', true);
-            }
+            const items = state.localDetections.filter(d => d.confidence >= CONFIG.HIGH_CONFIDENCE).slice(0, 3).map(d => `${d.name} ${d.position}`).join(', ');
+            if (items) speak(`I see: ${items}`, true);
+            else speak('Objects detected but not clearly identified', true);
         } else {
             speak('Area appears clear', true);
         }
@@ -1757,31 +1732,20 @@
     
     async function checkSafety() {
         speak('Checking safety...', true);
-
         const result = await analyzeWithAI('detailed');
         if (result) {
             speak(result, true);
         } else {
             const obstacle = state.localDetections.find(d => d.inPath);
-            if (obstacle) {
-                const displayName = getDisplayName(obstacle);
-                speak(`${displayName} in your path, ${(obstacle.distance * 3.28084).toFixed(0)} feet ahead`, true);
-            } else {
-                speak('Path appears clear', true);
-            }
+            if (obstacle) speak(`${getDisplayName(obstacle)} in your path, ${(obstacle.distance * 3.28084).toFixed(0)} feet ahead`, true);
+            else speak('Path appears clear', true);
         }
     }
     
     function speakDirection(dir) {
         const items = state.localDetections.filter(d => d.position === dir);
-        if (items.length > 0) {
-            const displayName = getDisplayName(items[0]);
-            speak(`${displayName} on your ${dir}, about ${(items[0].distance * 3.28084).toFixed(0)} feet`, true);
-        } else {
-            speak(`Nothing detected on your ${dir}`, true);
-        }
-        
-        // Flash direction
+        if (items.length > 0) speak(`${getDisplayName(items[0])} on your ${dir}, about ${(items[0].distance * 3.28084).toFixed(0)} feet`, true);
+        else speak(`Nothing detected on your ${dir}`, true);
         const el = document.getElementById(`dir${dir.charAt(0).toUpperCase() + dir.slice(1)}`);
         el.classList.add('active');
         setTimeout(() => el.classList.remove('active'), 1000);
@@ -1789,25 +1753,17 @@
     
     async function triggerAIScan() {
         speak('Scanning surroundings...', true);
-
         const result = await analyzeWithAI('detailed');
-        if (result) {
-            speak(result, true);
-        } else {
-            speak('Scan complete. No additional hazards detected.', true);
-        }
+        if (result) speak(result, true);
+        else speak('Scan complete. No additional hazards detected.', true);
     }
 
-    // ========== VISION TRICKS (read / color / bill) ==========
-    // All three run on-device. Color is pure pixel math; OCR + bill use
-    // Tesseract.js, lazy-loaded on first use.
-
+    // ========== VISION TRICKS ==========
     function captureFrameCanvas() {
         const v = state.video;
         if (!v || !v.videoWidth) return null;
         const canvas = document.createElement('canvas');
-        canvas.width = v.videoWidth;
-        canvas.height = v.videoHeight;
+        canvas.width = v.videoWidth; canvas.height = v.videoHeight;
         canvas.getContext('2d').drawImage(v, 0, 0);
         return canvas;
     }
@@ -1817,15 +1773,13 @@
     async function getTesseractWorker() {
         if (_tesseractWorker) return _tesseractWorker;
         if (_tesseractLoading) return _tesseractLoading;
-
         _tesseractLoading = (async () => {
             try {
                 if (!window.Tesseract) {
                     await new Promise((resolve, reject) => {
                         const s = document.createElement('script');
                         s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-                        s.onload = resolve;
-                        s.onerror = reject;
+                        s.onload = resolve; s.onerror = reject;
                         document.head.appendChild(s);
                     });
                 }
@@ -1841,95 +1795,65 @@
     }
 
     function classifyColorRGB(r, g, b) {
-        // r/g/b in 0..1
-        const maxC = Math.max(r, g, b);
-        const minC = Math.min(r, g, b);
-        const l = (maxC + minC) / 2;
-        const delta = maxC - minC;
-
+        const maxC = Math.max(r, g, b), minC = Math.min(r, g, b);
+        const l = (maxC + minC) / 2, delta = maxC - minC;
         if (delta < 0.08) {
-            if (l < 0.12) return 'black';
-            if (l < 0.35) return 'dark gray';
-            if (l < 0.65) return 'gray';
-            if (l < 0.88) return 'light gray';
-            return 'white';
+            if (l < 0.12) return 'black'; if (l < 0.35) return 'dark gray';
+            if (l < 0.65) return 'gray'; if (l < 0.88) return 'light gray'; return 'white';
         }
-
         let h;
-        if (maxC === r)      h = ((g - b) / delta) + (g < b ? 6 : 0);
+        if (maxC === r) h = ((g - b) / delta) + (g < b ? 6 : 0);
         else if (maxC === g) h = ((b - r) / delta) + 2;
-        else                 h = ((r - g) / delta) + 4;
+        else h = ((r - g) / delta) + 4;
         h *= 60;
-
         const lightPrefix = l < 0.28 ? 'dark ' : (l > 0.78 ? 'light ' : '');
-
         if (h < 12 || h >= 348) return lightPrefix + 'red';
-        if (h < 40)             return lightPrefix + 'orange';
-        if (h < 65)             return lightPrefix + 'yellow';
-        if (h < 165)            return lightPrefix + 'green';
-        if (h < 200)            return lightPrefix + 'teal';
-        if (h < 255)            return lightPrefix + 'blue';
-        if (h < 290)            return lightPrefix + 'purple';
+        if (h < 40) return lightPrefix + 'orange';
+        if (h < 65) return lightPrefix + 'yellow';
+        if (h < 165) return lightPrefix + 'green';
+        if (h < 200) return lightPrefix + 'teal';
+        if (h < 255) return lightPrefix + 'blue';
+        if (h < 290) return lightPrefix + 'purple';
         return lightPrefix + 'pink';
     }
 
     function webIdentifyColor() {
         const canvas = captureFrameCanvas();
         if (!canvas) { speak('Camera not ready.', true); return; }
-
         const ctx = canvas.getContext('2d');
-        const w = Math.floor(canvas.width * 0.3);
-        const h = Math.floor(canvas.height * 0.3);
-        const x = Math.floor((canvas.width - w) / 2);
-        const y = Math.floor((canvas.height - h) / 2);
+        const w = Math.floor(canvas.width * 0.3), h = Math.floor(canvas.height * 0.3);
+        const x = Math.floor((canvas.width - w) / 2), y = Math.floor((canvas.height - h) / 2);
         const data = ctx.getImageData(x, y, w, h).data;
-
         let rs = 0, gs = 0, bs = 0;
         const n = data.length / 4;
-        for (let i = 0; i < data.length; i += 4) {
-            rs += data[i]; gs += data[i + 1]; bs += data[i + 2];
-        }
-        const color = classifyColorRGB(rs / n / 255, gs / n / 255, bs / n / 255);
-        speak(`That looks ${color}.`, true);
+        for (let i = 0; i < data.length; i += 4) { rs += data[i]; gs += data[i + 1]; bs += data[i + 2]; }
+        speak(`That looks ${classifyColorRGB(rs / n / 255, gs / n / 255, bs / n / 255)}.`, true);
     }
 
     async function webRecognizeText() {
         const canvas = captureFrameCanvas();
         if (!canvas) { speak('Camera not ready.', true); return; }
-
         speak('Reading.', true);
         const worker = await getTesseractWorker();
         if (!worker) { speak('Reading not available right now.', true); return; }
-
         try {
             const { data } = await worker.recognize(canvas);
             const text = (data.text || '').trim().replace(/\s+/g, ' ');
             if (!text) { speak('No text found.', true); return; }
-            const trimmed = text.length > 240 ? text.slice(0, 240) + '…' : text;
-            speak(trimmed, true);
-        } catch (e) {
-            console.error('OCR error:', e);
-            speak('Could not read text.', true);
-        }
+            speak(text.length > 240 ? text.slice(0, 240) + '…' : text, true);
+        } catch (e) { console.error('OCR error:', e); speak('Could not read text.', true); }
     }
 
     async function webIdentifyCurrency() {
         const canvas = captureFrameCanvas();
         if (!canvas) { speak('Camera not ready.', true); return; }
-
         speak('Reading bill.', true);
         const worker = await getTesseractWorker();
         if (!worker) { speak('Bill reader not available right now.', true); return; }
-
         try {
             const { data } = await worker.recognize(canvas);
             const text = (data.text || '').toUpperCase();
-
-            const hasMarker =
-                text.includes('FEDERAL RESERVE') ||
-                text.includes('UNITED STATES') ||
-                text.includes('DOLLARS');
-
+            const hasMarker = text.includes('FEDERAL RESERVE') || text.includes('UNITED STATES') || text.includes('DOLLARS');
             const denoms = [
                 { d: '100', w: 'HUNDRED', s: 'one hundred dollars' },
                 { d: '50',  w: 'FIFTY',   s: 'fifty dollars' },
@@ -1938,19 +1862,12 @@
                 { d: '5',   w: 'FIVE',    s: 'five dollars' },
                 { d: '1',   w: 'ONE',     s: 'one dollar' },
             ];
-
             for (const { d, w, s } of denoms) {
                 const re = new RegExp(`\\b${d}\\b`);
-                if (re.test(text) && (text.includes(w) || hasMarker)) {
-                    speak(s + '.', true);
-                    return;
-                }
+                if (re.test(text) && (text.includes(w) || hasMarker)) { speak(s + '.', true); return; }
             }
             speak('Cannot identify the bill. Hold it flat with the front facing the camera.', true);
-        } catch (e) {
-            console.error('Bill OCR error:', e);
-            speak('Could not read bill.', true);
-        }
+        } catch (e) { console.error('Bill OCR error:', e); speak('Could not read bill.', true); }
     }
 
     // ========== GESTURES ==========
@@ -1967,35 +1884,18 @@
             const dx = e.changedTouches[0].clientX - touchStart.x;
             const dy = e.changedTouches[0].clientY - touchStart.y;
             const duration = Date.now() - touchStart.time;
-            
-            if (duration > 1500) {
-                showHelp();
-                return;
-            }
-            
-            // Swipe
-            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
-                speakDirection(dx > 0 ? 'right' : 'left');
-                return;
-            }
-            
-            // Tap zones
+            if (duration > 1500) { showHelp(); return; }
+            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) { speakDirection(dx > 0 ? 'right' : 'left'); return; }
             const y = e.changedTouches[0].clientY / window.innerHeight;
-            if (y < 0.4) {
-                describeArea();
-            } else if (y > 0.6) {
-                triggerAIScan();
-            }
+            if (y < 0.4) describeArea();
+            else if (y > 0.6) triggerAIScan();
         }, { passive: true });
         
-        // Buttons (hidden by default but kept wired for assistive tech)
         document.getElementById('btnDescribe').addEventListener('click', () => { unlockAudio(); describeArea(); });
         document.getElementById('btnMic').addEventListener('click', () => { unlockAudio(); startListening(); });
         document.getElementById('btnSafe').addEventListener('click', () => { unlockAudio(); checkSafety(); });
 
-        // CAM toggle — mirrors the iOS app's camera preview button.
-        // Off by default to match the app and to save battery. Toggling on
-        // shows a translucent preview, useful for sighted helpers.
+        // CAM toggle
         const camBtn = document.getElementById('btnCam');
         const videoEl = document.getElementById('video');
         if (camBtn && videoEl) {
@@ -2007,12 +1907,18 @@
                 camBtn.setAttribute('aria-pressed', turningOn ? 'true' : 'false');
             });
         }
+
+        // CC toggle
+        document.getElementById('btnCC').addEventListener('click', () => { unlockAudio(); toggleCaptions(); });
+
+        // Sound detection toggle
+        document.getElementById('btnSnd').addEventListener('click', () => { unlockAudio(); toggleSoundDetection(); });
     }
     
     // ========== HELP ==========
     function showHelp() {
         document.getElementById('help').classList.add('visible');
-        speak('GuideDog automatically warns you about obstacles, stairs, walls, and doors. You don\'t need to do anything. Tap the button to start.', true);
+        speak('GuideDog automatically warns you about obstacles, stairs, walls, and doors. Tap CC to enable live captions. Tap the sound icon to detect environmental sounds. Tap the button to start.', true);
     }
 
     function hideHelp() {
@@ -2025,7 +1931,7 @@
         fastHazardLoop();
     }
 
-    // ========== COLORBLIND PALETTE ==========
+    // ========== COLORBLIND ==========
     function setColorblind(enabled) {
         document.body.classList.toggle('colorblind', !!enabled);
         const item = document.getElementById('colorblindToggleItem');
@@ -2059,7 +1965,6 @@
         document.getElementById('helpClose').addEventListener('click', hideHelp);
         const privacyNotice = document.getElementById('privacyNotice');
 
-        // Load camera first
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -2067,28 +1972,19 @@
             });
             state.video.srcObject = stream;
             await state.video.play();
-        } catch (e) {
-            console.warn('Camera error:', e);
-        }
+        } catch (e) { console.warn('Camera error:', e); }
 
-        // Load COCO-SSD
         try {
             state.model = await cocoSsd.load();
-        } catch (e) {
-            console.error('COCO-SSD load failed:', e);
-        }
+        } catch (e) { console.error('COCO-SSD load failed:', e); }
 
         document.getElementById('loading').classList.add('hidden');
         initDepthModel();
 
-        // Show privacy every launch
-        // First tap: welcome + read privacy. Second tap: move to features.
         privacyNotice.style.display = 'flex';
         let privacyRead = false;
-
         privacyNotice.addEventListener('click', () => {
             if (!privacyRead) {
-                // FIRST TAP — unlock audio, welcome, read privacy
                 privacyRead = true;
                 unlockAudio();
                 try {
@@ -2096,15 +1992,14 @@
                     const u = new SpeechSynthesisUtterance(
                         'Welcome to GuideDog. ' +
                         'This app uses your camera and cloud A.I. to help you navigate. ' +
-                        'All detection runs on your device. No data is stored. ' +
-                        'Tap again to continue.'
+                        'It can also caption speech and detect environmental sounds using your microphone. ' +
+                        'No data is stored. Tap again to continue.'
                     );
                     u.rate = 1.0; u.volume = 1.0;
                     speechSynthesis.speak(u);
                 } catch(e){}
                 return;
             }
-            // SECOND TAP — move to features
             try { speechSynthesis.cancel(); } catch(e){}
             privacyNotice.style.display = 'none';
             showHelp();
@@ -2117,10 +2012,17 @@
         if (document.hidden) {
             state.isRunning = false;
             if (state.xrSession) { state.xrSession.end().catch(() => {}); state.xrSession = null; state.xrDepthActive = false; }
+            // Pause sound detection when hidden
+            if (state.yamnetInterval) { clearInterval(state.yamnetInterval); state.yamnetInterval = null; }
         } else if (state.model && state.video?.srcObject) {
-            // Only restart if fully initialised (model loaded, camera running)
             state.isRunning = true;
             protectionLoop();
+            // Restart sound detection if it was enabled
+            if (state.yamnetEnabled && !state.yamnetInterval) {
+                state.yamnetInterval = setInterval(() => {
+                    if (state.isRunning && state.yamnetEnabled) runYAMNet();
+                }, CONFIG.YAMNET_INTERVAL);
+            }
         }
     });
     
