@@ -878,7 +878,12 @@
           id="btnModeGuide"
           aria-label="GuideDog navigation mode"
         >
-          <div class="mode-card-icon">🦮</div>
+          <div class="mode-card-icon">
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"/>
+              <path d="M8 13 L11 16 L16 9"/>
+            </svg>
+          </div>
           <div class="mode-card-title">GuideDog</div>
           <div class="mode-card-desc">
             Obstacle detection, AI guidance, and real-time hazard alerts to help
@@ -895,7 +900,13 @@
           id="btnModeAssist"
           aria-label="Sound and caption assist mode"
         >
-          <div class="mode-card-icon">👂</div>
+          <div class="mode-card-icon">
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 12 L8 12 L11 7 L11 17 L8 12"/>
+              <path d="M14 9 Q17 12 14 15"/>
+              <path d="M16 6 Q21 12 16 18"/>
+            </svg>
+          </div>
           <div class="mode-card-title">Sound &amp; Captions</div>
           <div class="mode-card-desc">
             Live closed captions for speech nearby, plus automatic detection of
@@ -936,12 +947,19 @@
           aria-pressed="false"
           title="Sound Detection"
         >
-          🔊
+          <span style="font-size: 14px; font-weight: 800">SND</span>
         </button>
       </div>
       <div class="assist-body">
         <div class="assist-status" id="assistStatus">
-          <div class="assist-status-icon">🎤</div>
+          <div class="assist-status-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="9" y="3" width="6" height="11" rx="3"/>
+              <path d="M5 11 Q5 18 12 18 Q19 18 19 11"/>
+              <line x1="12" y1="18" x2="12" y2="21"/>
+              <line x1="9" y1="21" x2="15" y2="21"/>
+            </svg>
+          </div>
           <div class="assist-status-text" id="assistStatusText">
             Captions ready
           </div>
@@ -1040,22 +1058,6 @@
       </div>
 
       <div class="help-item">
-        <div class="help-label">Live Captions (CC button)</div>
-        <div class="help-desc">
-          Tap CC to turn on closed captions. Speech near you will appear as text
-          at the bottom of the screen in real time.
-        </div>
-      </div>
-
-      <div class="help-item">
-        <div class="help-label">Sound Detection (🔊 button)</div>
-        <div class="help-desc">
-          Tap 🔊 to enable sound detection. GuideDog will identify sounds like
-          alarms, sirens, dogs, traffic, music, and more.
-        </div>
-      </div>
-
-      <div class="help-item">
         <div class="help-label">Voice Commands (tap mic button)</div>
         <div class="help-desc">
           "What's around" - describe area<br />"Is it safe" - check path<br />"Left"
@@ -1125,27 +1127,19 @@
           >
             SAFE
           </div>
+          <!-- Back to mode select. Always visible at the top-left of the
+               status bar so users can leave guide mode anytime. -->
+          <button
+            class="cam-toggle"
+            id="btnGuideBack"
+            aria-label="Back to mode select"
+            title="Back"
+            style="margin-right: auto"
+          >
+            <span style="font-size: 18px; line-height: 1">&#8592;</span>
+            <span style="font-size: 9px">BACK</span>
+          </button>
           <div class="ai-badge" id="aiBadge">AI Active</div>
-          <!-- Sound detection toggle -->
-          <button
-            class="snd-toggle"
-            id="btnSnd"
-            aria-label="Toggle sound detection"
-            aria-pressed="false"
-            title="Sound Detection"
-          >
-            🔊
-          </button>
-          <!-- Closed caption toggle -->
-          <button
-            class="cc-toggle"
-            id="btnCC"
-            aria-label="Toggle live captions"
-            aria-pressed="false"
-            title="Closed Captions"
-          >
-            <span style="font-size: 15px; font-weight: 800">CC</span>
-          </button>
           <button
             class="cam-toggle"
             id="btnCam"
@@ -1229,15 +1223,6 @@
       <div id="captionBox" role="status"></div>
     </div>
 
-    <!-- Debug panel — enable via ?debug=1 or localStorage.gd_debug=1 -->
-    <div id="debugPanel" aria-hidden="true">
-      <span class="close" onclick="this.parentElement.classList.remove('on')">×</span>
-      <div id="debugStatus"></div>
-      <hr />
-      <div id="debugMeter"></div>
-      <hr />
-      <div id="debugLog"></div>
-    </div>
 
     <!-- TensorFlow.js + COCO-SSD (used for object detection only).
          YAMNet sound classification was migrated to MediaPipe (see below);
@@ -1505,7 +1490,12 @@
       let _currentSpeechPriority = 0;
       let _lastSpeechTime = 0;
 
+      // Single bottleneck for outgoing TTS. Used by speak() and speakAlert()
+      // so the assist-mode silence guard is applied uniformly: deaf / HoH
+      // users in assist mode get visual captions and haptics only, never a
+      // voice they can't hear.
       function doSpeak(text, rate = 1.1) {
+        if (state.appMode === "assist") return;
         try {
           const u = new SpeechSynthesisUtterance(text);
           u.rate = rate;
@@ -1862,12 +1852,17 @@
         }
 
         state.captionEnabled = !state.captionEnabled;
+        // btnCC was only on the blind-mode status bar and has been removed.
+        // The assist screen has btnAssistCC with its own click handler that
+        // mirrors state. Null-check so guide-mode callers don't crash.
         const btn = document.getElementById("btnCC");
-        btn.classList.toggle("on", state.captionEnabled);
-        btn.setAttribute(
-          "aria-pressed",
-          state.captionEnabled ? "true" : "false",
-        );
+        if (btn) {
+          btn.classList.toggle("on", state.captionEnabled);
+          btn.setAttribute(
+            "aria-pressed",
+            state.captionEnabled ? "true" : "false",
+          );
+        }
 
         if (state.captionEnabled) {
           state.captionFinalText = "";
@@ -2785,12 +2780,16 @@
 
       async function toggleSoundDetection() {
         state.yamnetEnabled = !state.yamnetEnabled;
+        // btnSnd only exists in the (now-removed) blind-mode status bar.
+        // Guard so the assist-mode caller doesn't crash when it isn't there.
         const btn = document.getElementById("btnSnd");
-        btn.classList.toggle("on", state.yamnetEnabled);
-        btn.setAttribute(
-          "aria-pressed",
-          state.yamnetEnabled ? "true" : "false",
-        );
+        if (btn) {
+          btn.classList.toggle("on", state.yamnetEnabled);
+          btn.setAttribute(
+            "aria-pressed",
+            state.yamnetEnabled ? "true" : "false",
+          );
+        }
 
         if (state.yamnetEnabled) {
           // Request mic access. Disable browser audio DSP — AGC/NS/EC are
@@ -4250,24 +4249,41 @@
           });
         }
 
-        // CC toggle
-        document.getElementById("btnCC").addEventListener("click", () => {
-          unlockAudio();
-          toggleCaptions();
-        });
+        // Back to mode select. Tears down the running protection loops and
+        // navigates back to the home screen so the user can switch modes.
+        const backBtn = document.getElementById("btnGuideBack");
+        if (backBtn) {
+          backBtn.addEventListener("click", () => {
+            leaveGuideMode();
+          });
+        }
+      }
 
-        // Sound detection toggle
-        document.getElementById("btnSnd").addEventListener("click", () => {
-          unlockAudio();
-          toggleSoundDetection();
-        });
+      // Stop all running guide-mode work and return to the mode select
+      // screen. Mirror of leaveAssistMode for the blind navigation surface.
+      function leaveGuideMode() {
+        try { speechSynthesis.cancel(); } catch (e) {}
+        state.isRunning = false;
+        state.isPaused = true;
+        try { state.recognition && state.recognition.stop(); } catch (e) {}
+        // Hide the in-flight app UI
+        document.getElementById("help").classList.remove("visible");
+        // Stop the camera stream so the indicator dot goes away
+        const v = state.video;
+        if (v && v.srcObject) {
+          try { v.srcObject.getTracks().forEach((t) => t.stop()); } catch (e) {}
+          v.srcObject = null;
+        }
+        // Reset mode flag and show the mode picker
+        state.appMode = null;
+        showModeSelect();
       }
 
       // ========== HELP ==========
       function showHelp() {
         document.getElementById("help").classList.add("visible");
         speak(
-          "GuideDog automatically warns you about obstacles, stairs, walls, and doors. Tap CC to enable live captions. Tap the sound icon to detect environmental sounds. Tap the button to start.",
+          "GuideDog automatically warns you about obstacles, stairs, walls, and doors. Tap the button to start.",
           true,
         );
       }

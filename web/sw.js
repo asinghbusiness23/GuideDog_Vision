@@ -1,4 +1,4 @@
-const CACHE = 'guidedog-v32';       // bumped — merge: sound detection + captions + prior fixes
+const CACHE = 'guidedog-v33';       // bumped — clean guide-mode UI, silent assist mode, no emojis, no debug HUD
 const CDN_CACHE = 'guidedog-cdn-v3'; // bumped — added YAMNet CDN URL
 
 const CDN_SCRIPTS = [
