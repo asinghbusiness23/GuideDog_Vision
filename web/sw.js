@@ -1,4 +1,4 @@
-const CACHE = 'guidedog-v35';       // bumped — scrollable home, borderless buttons, smaller caption box
+const CACHE = 'guidedog-v36';       // bumped — caption box scrolls newest-text-to-bottom subtitle style
 const CDN_CACHE = 'guidedog-cdn-v3'; // bumped — added YAMNet CDN URL
 
 const CDN_SCRIPTS = [

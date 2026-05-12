@@ -384,7 +384,10 @@
         font-weight: bold;
       }
 
-      /* Speech caption box — sized to read like subtitles, not a full-screen wall of text */
+      /* Speech caption box — fixed compact strip near the bottom of the
+         screen. Newest text stays pinned at the bottom of the box; older
+         text rolls off the top once the buffer overflows three lines,
+         matching the behaviour of broadcast subtitles. */
       #captionBox {
         background: rgba(8, 11, 18, 0.92);
         backdrop-filter: blur(8px);
@@ -397,13 +400,14 @@
         line-height: 1.4;
         color: var(--text);
         text-align: center;
-        /* Width capped well below viewport so it reads as a caption strip.
-           Height capped at three lines (~5.6em at 1.4 line-height) and
-           clipped — old text scrolls off rather than growing the box. */
-        max-width: min(78vw, 340px);
-        width: fit-content;
+        /* Compact strip — never wider than 78% viewport or 340px. */
+        width: min(78vw, 340px);
         min-height: 0;
-        max-height: 5.6em;
+        /* Three lines of text at 1.4 line-height + the 10px top/bottom
+           padding included automatically because we use box-sizing
+           border-box at the top of the sheet. */
+        height: calc(3 * 1.4em + 20px);
+        max-height: calc(3 * 1.4em + 20px);
         overflow: hidden;
         word-wrap: break-word;
         overflow-wrap: anywhere;
@@ -413,6 +417,16 @@
         pointer-events: none;
         box-shadow: var(--shadow-md);
         -webkit-font-smoothing: antialiased;
+        /* Inner wrapper sits at the bottom edge of the box; when its
+           content grows past the box height the top of the wrapper is
+           clipped (overflow: hidden on the outer), so the newest text is
+           always visible at the bottom. */
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+      }
+      #captionBox .cap-inner {
+        width: 100%;
       }
       #captionBox.visible {
         opacity: 1;
@@ -1986,11 +2000,17 @@
           return;
         }
 
+        // Wrap in .cap-inner so the outer flex container can bottom-align
+        // it. When the inner exceeds the box height, overflow: hidden on
+        // the box clips the TOP of the inner, leaving the newest text at
+        // the bottom visible.
         box.innerHTML =
+          `<div class="cap-inner">` +
           `<span class="final">${escapeHTML(finalText)}</span>` +
           (interimText
             ? `<span class="interim">${escapeHTML(interimText)}</span>`
-            : "");
+            : "") +
+          `</div>`;
         box.classList.add("visible");
 
         // Auto-hide after silence
