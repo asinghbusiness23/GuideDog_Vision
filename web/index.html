@@ -183,33 +183,98 @@
         white-space: nowrap;
       }
 
-      .cam-toggle {
-        width: 44px;
-        height: 44px;
-        border-radius: var(--r-md);
+      /* ── Status-bar controls ──
+         Three distinct shapes by function. Avoids the AI-generated
+         "every button is a rounded square" look:
+            • .nav-ghost — leading-edge navigation chrome (BACK).
+              No fill, no border. Just an icon in dimmed text colour.
+            • .icon-btn  — square toggle for binary on/off state
+              (CAM). Subtle fill, no border, accent fill when on.
+            • .chip-btn  — pill-shaped chip for labelled toggles
+              (CC, SND). Reads as a tag, not a button. */
+
+      .nav-ghost {
+        height: 40px;
+        min-width: 40px;
+        padding: 0 8px;
         border: none;
-        background: var(--surface-1);
-        color: var(--text);
-        font-size: 13px;
-        font-weight: 600;
-        display: flex;
-        flex-direction: column;
+        background: transparent;
+        color: var(--text-dim);
+        display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 1px;
-        transition:
-          background 0.15s,
-          transform 0.1s;
-        flex-shrink: 0;
         cursor: pointer;
+        border-radius: var(--r-md);
+        transition: color 0.15s, background 0.15s;
+        flex-shrink: 0;
+      }
+      .nav-ghost:hover { color: var(--text); }
+      .nav-ghost:active {
+        background: var(--surface-1);
+        color: var(--text);
+      }
+      .nav-ghost svg {
+        width: 22px;
+        height: 22px;
+        stroke-width: 2;
+      }
+
+      .icon-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--r-md);
+        border: none;
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text-dim);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: background 0.15s, color 0.15s, transform 0.1s;
+      }
+      .icon-btn:active {
+        transform: scale(0.94);
+        background: rgba(255, 255, 255, 0.10);
+      }
+      .icon-btn.on {
+        background: rgba(78, 211, 161, 0.18);
+        color: var(--accent-guide-fg);
+      }
+      .icon-btn svg {
+        width: 20px;
+        height: 20px;
+      }
+
+      /* Back-compat: existing markup still uses .cam-toggle. Map it
+         to the new icon-btn surface so HTML doesn't need rewriting. */
+      .cam-toggle {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--r-md);
+        border: none;
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text-dim);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: background 0.15s, color 0.15s, transform 0.1s;
+        font-size: 0; /* hide the legacy "CAM" / "BACK" text labels */
       }
       .cam-toggle:active {
-        transform: scale(0.96);
-        background: var(--surface-2);
+        transform: scale(0.94);
+        background: rgba(255, 255, 255, 0.10);
       }
       .cam-toggle.on {
-        background: rgba(78, 211, 161, 0.22);
+        background: rgba(78, 211, 161, 0.18);
         color: var(--accent-guide-fg);
+      }
+      .cam-toggle svg {
+        width: 20px;
+        height: 20px;
       }
 
       .gesture-hint {
@@ -441,59 +506,77 @@
         color: #fff;
       }
 
-      /* Caption toggle button — in status bar */
+      /* CC and SND in the assist bar are pill chips, not square buttons.
+         CC mimics the visual language of broadcast / streaming caption
+         toggles (rectangular pill, two-letter label). SND uses a sound
+         wave glyph in the same chip shape so the pair reads as a
+         matched set without being identical-looking. */
       .cc-toggle {
-        width: 44px;
-        height: 44px;
-        border-radius: var(--r-md);
-        border: none;
-        background: var(--surface-1);
+        height: 32px;
+        padding: 0 12px;
+        border-radius: 999px;
+        border: 1.5px solid rgba(255, 255, 255, 0.25);
+        background: transparent;
         color: var(--text);
-        font-size: 11px;
-        font-weight: 700;
-        display: flex;
-        flex-direction: column;
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.4px;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 1px;
-        transition: background 0.15s, transform 0.1s;
+        gap: 4px;
+        transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
         flex-shrink: 0;
         cursor: pointer;
+      }
+      .cc-toggle > span {
+        font-size: 12px !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.8px;
       }
       .cc-toggle:active {
         transform: scale(0.96);
-        background: var(--surface-2);
+        background: rgba(255, 255, 255, 0.08);
       }
       .cc-toggle.on {
         background: rgba(125, 158, 255, 0.22);
+        border-color: rgba(125, 158, 255, 0.6);
         color: var(--accent-assist-fg);
       }
 
-      /* Sound toggle button */
       .snd-toggle {
-        width: 44px;
-        height: 44px;
-        border-radius: var(--r-md);
-        border: none;
-        background: var(--surface-1);
+        height: 32px;
+        min-width: 32px;
+        padding: 0 10px;
+        border-radius: 999px;
+        border: 1.5px solid rgba(255, 255, 255, 0.25);
+        background: transparent;
         color: var(--text);
-        font-size: 18px;
-        display: flex;
-        flex-direction: column;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 1px;
-        transition: background 0.15s, transform 0.1s;
+        gap: 0;
+        transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
         flex-shrink: 0;
         cursor: pointer;
+        font-size: 0; /* hide legacy "SND" / emoji text content */
       }
       .snd-toggle:active {
         transform: scale(0.96);
-        background: var(--surface-2);
+        background: rgba(255, 255, 255, 0.08);
       }
       .snd-toggle.on {
         background: rgba(78, 211, 161, 0.22);
+        border-color: rgba(78, 211, 161, 0.6);
         color: var(--accent-guide-fg);
+      }
+      .snd-toggle::before {
+        content: "";
+        width: 18px;
+        height: 18px;
+        background: currentColor;
+        -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M11 5L6 9H3v6h3l5 4V5zM15.5 8.5a4.5 4.5 0 010 7M18 6a8 8 0 010 12'/></svg>") center/contain no-repeat;
+        mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M11 5L6 9H3v6h3l5 4V5zM15.5 8.5a4.5 4.5 0 010 7M18 6a8 8 0 010 12'/></svg>") center/contain no-repeat;
       }
 
       /* Direction indicators — hidden but kept in DOM */
@@ -1107,12 +1190,10 @@
     <!-- ── ASSIST MODE SCREEN ── -->
     <div id="assistScreen" role="main" aria-label="Sound and Captions mode">
       <div class="assist-bar">
-        <button
-          class="assist-back"
-          id="btnAssistBack"
-          aria-label="Back to home"
-        >
-          &#8592;
+        <button class="nav-ghost" id="btnAssistBack" aria-label="Back to home">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M15 6 L9 12 L15 18"/>
+          </svg>
         </button>
         <div class="assist-title">Sound &amp; Captions</div>
         <button
@@ -1130,9 +1211,7 @@
           aria-label="Toggle sound detection"
           aria-pressed="false"
           title="Sound Detection"
-        >
-          <span style="font-size: 14px; font-weight: 800">SND</span>
-        </button>
+        ></button>
       </div>
       <div class="assist-body">
         <div class="assist-status" id="assistStatus">
@@ -1309,42 +1388,41 @@
           >
             SAFE
           </div>
-          <!-- Back to mode select. Always visible at the top-left of the
-               status bar so users can leave guide mode anytime. -->
+          <!-- Back to mode select. Ghost-style icon, no fill, no label.
+               Reads as iOS-native navigation chrome, not as a toggle. -->
           <button
-            class="cam-toggle"
+            class="nav-ghost"
             id="btnGuideBack"
             aria-label="Back to mode select"
             title="Back"
             style="margin-right: auto"
           >
-            <span style="font-size: 18px; line-height: 1">&#8592;</span>
-            <span style="font-size: 9px">BACK</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M15 6 L9 12 L15 18"/>
+            </svg>
           </button>
           <div class="ai-badge" id="aiBadge">AI Active</div>
           <button
-            class="cam-toggle"
+            class="icon-btn"
             id="btnCam"
             aria-label="Toggle camera preview on or off"
+            title="Camera preview"
           >
             <svg
               id="camIcon"
-              width="20"
-              height="20"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              stroke-width="2"
+              stroke-width="1.8"
               stroke-linecap="round"
               stroke-linejoin="round"
               aria-hidden="true"
             >
               <path
-                d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
+                d="M22 7.5v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h3.5l1.6-2.2A1 1 0 0 1 9.9 3h4.2a1 1 0 0 1 .8.4L16.5 5.5H20a2 2 0 0 1 2 2z"
               />
-              <circle cx="12" cy="13" r="4" />
+              <circle cx="12" cy="12.5" r="3.5" />
             </svg>
-            <span style="font-size: 9px">CAM</span>
           </button>
         </div>
 
