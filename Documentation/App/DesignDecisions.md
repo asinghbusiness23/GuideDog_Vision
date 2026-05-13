@@ -2,7 +2,7 @@
 
 Every choice in this app came with a tradeoff. This doc records the reasoning behind the big ones, so if I (or someone else) wonders later why the code is the way it is, the answer is here.
 
-## Why Capacitor, not pure SwiftUI
+## Reason for Capacitator
 
 GuideDog Vision wraps a WKWebView inside a native Swift app using Capacitor 8.3. The detection engine, speech, haptics, and all sensor processing run in Swift. The UI runs in HTML and JavaScript.
 
