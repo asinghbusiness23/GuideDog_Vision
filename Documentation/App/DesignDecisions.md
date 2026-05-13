@@ -1,6 +1,6 @@
 # Design Decisions
 
-Every design decision in this application involved trade-offs. This document outlines the decision behind the most significant choices, providing clarity for future readers seeking to understand the structure and implementation of GuideDog.
+Every design decision in this application involved trade-offs. This document outlines the decision behind the most significant choices, providing clarity for future readers seeking to understand the structure and implementation of GuideDog. Most of these came out of specific bugs or user complaints during testing. Each section names the decision, what it replaces, and the reason it won out.
 
 ## Reason for Capacitator
 
