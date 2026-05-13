@@ -11,6 +11,9 @@
 		2D5E4A922F8177C000375917 /* GuideDogPlugins.m in Sources */ = {isa = PBXBuildFile; fileRef = 2D5E4A8F2F8177C000375917 /* GuideDogPlugins.m */; };
 		2D5E4A932F8177C000375917 /* LiDARPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D5E4A902F8177C000375917 /* LiDARPlugin.swift */; };
 		2D5E4A962F817AF800375917 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D5E4A952F817AF800375917 /* ViewController.swift */; };
+		2DBBF4952FB2D87F00926C18 /* DepthAnythingBenchmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DBBF4932FB2D87F00926C18 /* DepthAnythingBenchmark.swift */; };
+		2DBBF4962FB2D87F00926C18 /* DepthAnythingProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DBBF4942FB2D87F00926C18 /* DepthAnythingProcessor.swift */; };
+		2DBBF4982FB2D8F600926C18 /* DepthAnythingSmall.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = 2DBBF4972FB2D8F600926C18 /* DepthAnythingSmall.mlpackage */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */ = {isa = PBXBuildFile; productRef = 4D22ABE82AF431CB00220026 /* CapApp-SPM */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
@@ -28,10 +31,10 @@
 		AA00010D2F900001000000001 /* ObjectDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00010C2F900001000000001 /* ObjectDetector.swift */; };
 		AA00010F2F900001000000001 /* MeshClassifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00010E2F900001000000001 /* MeshClassifier.swift */; };
 		AA0001112F900001000000001 /* SceneSegmenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001102F900001000000001 /* SceneSegmenter.swift */; };
-		AA0001172F900001000000001 /* VisionTricks.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001162F900001000000001 /* VisionTricks.swift */; };
-		AA0001192F900001000000001 /* DepthOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001182F900001000000001 /* DepthOverlayView.swift */; };
 		AA0001132F900001000000001 /* YOLOv8n.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = AA0001122F900001000000001 /* YOLOv8n.mlpackage */; };
 		AA0001152F900001000000001 /* DeepLabV3.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = AA0001142F900001000000001 /* DeepLabV3.mlpackage */; };
+		AA0001172F900001000000001 /* VisionTricks.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001162F900001000000001 /* VisionTricks.swift */; };
+		AA0001192F900001000000001 /* DepthOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001182F900001000000001 /* DepthOverlayView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -40,6 +43,9 @@
 		2D5E4A902F8177C000375917 /* LiDARPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiDARPlugin.swift; sourceTree = "<group>"; };
 		2D5E4A942F8177C300375917 /* App-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "App-Bridging-Header.h"; sourceTree = "<group>"; };
 		2D5E4A952F817AF800375917 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
+		2DBBF4932FB2D87F00926C18 /* DepthAnythingBenchmark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepthAnythingBenchmark.swift; sourceTree = "<group>"; };
+		2DBBF4942FB2D87F00926C18 /* DepthAnythingProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepthAnythingProcessor.swift; sourceTree = "<group>"; };
+		2DBBF4972FB2D8F600926C18 /* DepthAnythingSmall.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = DepthAnythingSmall.mlpackage; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -59,10 +65,10 @@
 		AA00010C2F900001000000001 /* ObjectDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjectDetector.swift; sourceTree = "<group>"; };
 		AA00010E2F900001000000001 /* MeshClassifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeshClassifier.swift; sourceTree = "<group>"; };
 		AA0001102F900001000000001 /* SceneSegmenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneSegmenter.swift; sourceTree = "<group>"; };
-		AA0001162F900001000000001 /* VisionTricks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionTricks.swift; sourceTree = "<group>"; };
-		AA0001182F900001000000001 /* DepthOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepthOverlayView.swift; sourceTree = "<group>"; };
 		AA0001122F900001000000001 /* YOLOv8n.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = wrapper.mlpackage; path = YOLOv8n.mlpackage; sourceTree = "<group>"; };
 		AA0001142F900001000000001 /* DeepLabV3.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = wrapper.mlpackage; path = DeepLabV3.mlpackage; sourceTree = "<group>"; };
+		AA0001162F900001000000001 /* VisionTricks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionTricks.swift; sourceTree = "<group>"; };
+		AA0001182F900001000000001 /* DepthOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepthOverlayView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -83,6 +89,9 @@
 				958DCC722DB07C7200EA8C5F /* debug.xcconfig */,
 				504EC3061FED79650016851F /* App */,
 				504EC3051FED79650016851F /* Products */,
+				2DBBF4932FB2D87F00926C18 /* DepthAnythingBenchmark.swift */,
+				2DBBF4942FB2D87F00926C18 /* DepthAnythingProcessor.swift */,
+				2DBBF4972FB2D8F600926C18 /* DepthAnythingSmall.mlpackage */,
 			);
 			sourceTree = "<group>";
 		};
@@ -212,10 +221,13 @@
 			files = (
 				2D5E4A962F817AF800375917 /* ViewController.swift in Sources */,
 				AA0001012F900001000000001 /* NavigationEngine.swift in Sources */,
+				2DBBF4982FB2D8F600926C18 /* DepthAnythingSmall.mlpackage in Sources */,
 				AA0001032F900001000000001 /* AISceneDescriber.swift in Sources */,
 				AA0001052F900001000000001 /* ONNXDetector.swift in Sources */,
 				AA0001072F900001000000001 /* AudioFeedback.swift in Sources */,
 				AA0001092F900001000000001 /* HapticFeedback.swift in Sources */,
+				2DBBF4952FB2D87F00926C18 /* DepthAnythingBenchmark.swift in Sources */,
+				2DBBF4962FB2D87F00926C18 /* DepthAnythingProcessor.swift in Sources */,
 				AA00010B2F900001000000001 /* VoiceCommands.swift in Sources */,
 				AA00010D2F900001000000001 /* ObjectDetector.swift in Sources */,
 				AA00010F2F900001000000001 /* MeshClassifier.swift in Sources */,
@@ -380,7 +392,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = UM7GGY22S3;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -388,7 +400,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.4;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = com.guidedog.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -408,7 +420,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = UM7GGY22S3;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -416,7 +428,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.guidedog.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

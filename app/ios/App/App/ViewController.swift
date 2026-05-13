@@ -47,6 +47,18 @@ class ViewController: CAPBridgeViewController, WKScriptMessageHandler {
 
         installDepthOverlay()
 
+        // Pre-warm the non-LiDAR depth model on a background queue so its
+        // 1-5s JIT compile happens while the user is reading the privacy
+        // and help screens. By the time engineStart fires, the model is
+        // already loaded and NavigationEngine.init returns instantly
+        // rather than freezing the main thread.
+        //
+        // Skipped on LiDAR-equipped devices since they never instantiate
+        // DepthAnythingProcessor.
+        if !ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
+            DepthAnythingProcessor.preload()
+        }
+
         print("VC: viewDidLoad complete")
     }
 
