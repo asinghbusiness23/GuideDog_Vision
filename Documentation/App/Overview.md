@@ -1,6 +1,6 @@
 # App Overview
 
-## The problem this app addresses
+## The Problem
 
 Roughly 2.2 billion people worldwide live with some form of vision impairment, including 43.3 million who are completely blind and 295.1 million with moderate to severe visual impairment. The most well-known mobility aid is the guide dog, but only about 2 percent of blind people actually have one due to 4 major reasons: cost, training time, low graduation rates, and waiting lists. Each guide dog costs $40,000 to $60,000 per dog, and requires extra money and responsibility to keep health. Additionally, a long training time of two years paired with the low graduation rates of roughly one in three dogs graduating create a low supply of guide dogs. As a result, the waiting lists are generally 1-3 years, and these cap the supply far below what is needed.
 
