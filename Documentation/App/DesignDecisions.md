@@ -1,6 +1,6 @@
 # Design Decisions
 
-Every choice in this app came with a tradeoff. This doc records the reasoning behind the big ones, so anyone wondering later why the code is the way it is can find the answer here.
+Every design decision in this application involved trade-offs. This document outlines the decision behind the most significant choices, providing clarity for future readers seeking to understand the structure and implementation of GuideDog.
 
 ## Reason for Capacitator
 
