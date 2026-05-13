@@ -57,7 +57,7 @@ All output:
 
 This loop is the sole owner of all UI updates and all speech output. No other code path modifies the UI during normal operation.
 
-### Why the split
+### Reason for the split
 
 COCO-SSD inference is 100 to 200 ms per call. Running it every 50 ms would back up the inference queue, drop frames, drain battery, and crash lower end devices. At the same time, the UI needs to feel responsive at 20 fps. A wall in the camera feed should trigger a visible and audible alert within 50 ms.
 
