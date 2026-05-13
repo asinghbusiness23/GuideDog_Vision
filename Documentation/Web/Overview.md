@@ -2,10 +2,11 @@
 
 ## The Problem
 
-About **2.2 billion people** worldwide live with vision impairment. **43.3 million** are fully blind. Only about **2 percent** of blind people have a guide dog. Cost (**$40,000 to $60,000** per dog), training time (**two years**), graduation rates (**one in three**), and waiting lists (**one to three years**) cap supply far below need. The full breakdown is in the [README](../../README.md).
+Roughly 2.2 billion people worldwide live with some form of vision impairment, including 43.3 million who are completely blind and 295.1 million with moderate to severe visual impairment. The most well-known mobility aid is the guide dog, but only about 2 percent of blind people actually have one due to 4 major reasons: cost, training time, low graduation rates, and waiting lists. Each guide dog costs $40,000 to $60,000 per dog, and requires extra money and responsibility to keep health. Additionally, a long training time of two years paired with the low graduation rates of roughly one in three dogs graduating create a low supply of guide dogs. As a result, the waiting lists are generally 1-3 years, and these cap the supply far below what is needed.
 
-The iPhone app helps, but it requires an iPhone and works best with LiDAR. The website goes further. It runs in any modern browser on any phone, with no install, no LiDAR requirement, and no cost.
+The app exists because every phone in someone's pocket already has cameras, a Neural Engine, and accelerometers. None of that hardware was being used to help blind people navigate. This project tries to change that.
 
+This app is not a guide dog and never will be. A dog makes its own safety calls, and a dog is a companion. What software can do is watch the scene, identify obstacles, and announce them. Read the [README](../../README.md) for the full problem writeup with citations.
 ## What it is
 
 The website is a Progressive Web App that helps blind and low vision people navigate using a phone's camera and microphone. Open the URL, grant camera permission, tap to start, and the system begins scanning.
