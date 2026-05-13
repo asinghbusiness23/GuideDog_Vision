@@ -1,6 +1,6 @@
 # Architecture
 
-## What makes this tricky
+## Technical Complexities
 
 GuideDog Vision is a Capacitor app doing real time computer vision. Most apps in this category are pure SwiftUI or UIKit. Going through a JavaScript bridge would normally add latency to safety critical paths, so several decisions exist to keep the bridge out of the hot path.
 
