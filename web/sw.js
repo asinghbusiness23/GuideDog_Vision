@@ -1,4 +1,4 @@
-const CACHE = 'guidedog-v40';       // bumped — homepage redesigned as terminal-mono landing with blue accent
+const CACHE = 'guidedog-v44';       // bumped — blind-hint moved above buttons
 const CDN_CACHE = 'guidedog-cdn-v3'; // bumped — added YAMNet CDN URL
 
 const CDN_SCRIPTS = [

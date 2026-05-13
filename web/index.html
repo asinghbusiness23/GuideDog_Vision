@@ -837,34 +837,23 @@
 
       /* ── Mode-select terminal-mono landing layout ───────────────────
          Replaces the older `.mode-card` grid. Two CTAs (start guide,
-         open assist) sit under the hero. The whole frame is bordered
-         so it reads as a discrete panel rather than a full-bleed page. */
+         open assist) sit under the hero. Content sits directly on the
+         page background — no bordered card wrapper. */
       .ms-frame {
         width: 100%;
         max-width: 1100px;
-        background: #0e1115;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 16px;
-        padding: 38px clamp(24px, 4vw, 44px);
+        padding: 0 clamp(8px, 2vw, 24px);
         margin: auto 0;
       }
 
-      .ms-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 12px;
-        letter-spacing: 0.10em;
-        color: rgba(255, 255, 255, 0.50);
-        margin-bottom: 18px;
+      .ms-wordmark {
+        font-size: clamp(56px, 11vw, 120px);
+        line-height: 1.0;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin: 0 0 18px;
+        color: #fff;
       }
-      .ms-brand { display: flex; align-items: center; gap: 10px; }
-      .ms-dot {
-        width: 8px; height: 8px; border-radius: 50%;
-        background: #48f;
-        flex-shrink: 0;
-      }
-      .ms-brand-name { letter-spacing: 0.12em; }
 
       .ms-rule {
         height: 1px;
@@ -873,28 +862,38 @@
       }
 
       .ms-hero {
-        font-size: clamp(34px, 6.5vw, 76px);
-        line-height: 1.1;
+        font-size: clamp(26px, 4.5vw, 48px);
+        line-height: 1.15;
         font-weight: 400;
         letter-spacing: -0.01em;
-        margin: 0 0 28px;
+        margin: 0 0 18px;
       }
-      .ms-hero-line { display: block; }
       .ms-hero-accent { color: #48f; }
 
       .ms-sub {
         font-size: clamp(15px, 1.5vw, 18px);
         line-height: 1.55;
         color: rgba(255, 255, 255, 0.65);
-        margin: 0 0 36px;
+        margin: 0 0 24px;
         max-width: 640px;
       }
+
+      .ms-features {
+        list-style: disc;
+        padding-left: 22px;
+        margin: 0 0 22px;
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 15px;
+        line-height: 1.7;
+      }
+      .ms-features li { padding-left: 4px; }
+      .ms-features li::marker { color: #48f; }
 
       .ms-actions {
         display: flex;
         gap: 12px;
         flex-wrap: wrap;
-        margin-bottom: clamp(40px, 6vw, 56px);
+        margin-bottom: 28px;
       }
       .ms-btn-primary,
       .ms-btn-secondary {
@@ -922,31 +921,15 @@
       }
       .ms-btn-secondary:active { border-color: rgba(255, 255, 255, 0.5); }
 
-      .ms-stats {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 12px;
-      }
-      .ms-stat {
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 6px;
-        padding: 14px 16px;
-      }
-      .ms-stat-label {
-        font-size: 11px;
-        letter-spacing: 0.08em;
-        color: rgba(255, 255, 255, 0.4);
-        margin-bottom: 6px;
-      }
-      .ms-stat-value {
-        font-size: 15px;
-        color: #fff;
+      .ms-blind-hint {
+        font-size: 13px;
+        line-height: 1.5;
+        color: rgba(255, 255, 255, 0.55);
+        margin: 0 0 22px;
+        max-width: 640px;
       }
 
       @media (max-width: 640px) {
-        .ms-header { font-size: 11px; letter-spacing: 0.08em; }
-        .ms-tagline-top { display: none; }
-        .ms-stats { grid-template-columns: 1fr; }
         .ms-actions { flex-direction: column; }
         .ms-btn-primary,
         .ms-btn-secondary { width: 100%; text-align: center; }
@@ -1226,52 +1209,39 @@
     <!-- ── MODE SELECT ── -->
     <div id="modeSelect">
       <div class="ms-frame">
-        <div class="ms-header">
-          <div class="ms-brand">
-            <span class="ms-dot" aria-hidden="true"></span>
-            <span class="ms-brand-name">GUIDEDOG</span>
-          </div>
-          <div class="ms-tagline-top">ACCESSIBILITY · NAVIGATION</div>
-        </div>
+        <h1 class="ms-wordmark">GuideDog</h1>
 
         <div class="ms-rule" aria-hidden="true"></div>
 
-        <h1 class="ms-hero">
-          <span class="ms-hero-line">Eyes when you need them.</span>
-          <span class="ms-hero-line ms-hero-accent">Ears when you don't.</span>
-        </h1>
+        <p class="ms-hero">
+          Eyes and Ears <span class="ms-hero-accent">when you need them</span>.
+        </p>
 
         <p class="ms-sub">
-          Real-time obstacle detection, sound awareness, and live captions.
-          Free. No account. Works on the phone in your pocket.
+          Real time obstacle detection, sound detection, and live captions.
+        </p>
+
+        <ul class="ms-features" aria-label="Features">
+          <li>Free</li>
+          <li>No account</li>
+          <li>No data stored</li>
+        </ul>
+
+        <p class="ms-blind-hint" id="msBlindHint" role="note">
+          Press Anywhere for Obstacle Detection or Press the Button for Captions and Sound Detection.
         </p>
 
         <div class="ms-actions">
           <button
             class="ms-btn-primary"
             id="btnModeGuide"
-            aria-label="Start GuideDog navigation mode"
+            aria-label="Start GuideDog navigation mode. You can also tap anywhere on this page to start."
           >&#9654; START GUIDEDOG</button>
           <button
             class="ms-btn-secondary"
             id="btnModeAssist"
-            aria-label="Open sound detection and captions mode"
+            aria-label="Open sound detection and live captions mode"
           >&darr; SOUND &amp; CAPTIONS</button>
-        </div>
-
-        <div class="ms-stats">
-          <div class="ms-stat">
-            <div class="ms-stat-label">DETECTION</div>
-            <div class="ms-stat-value">On-device</div>
-          </div>
-          <div class="ms-stat">
-            <div class="ms-stat-label">CAPTIONS</div>
-            <div class="ms-stat-value">Live</div>
-          </div>
-          <div class="ms-stat">
-            <div class="ms-stat-label">DATA</div>
-            <div class="ms-stat-value">Nothing stored</div>
-          </div>
         </div>
       </div>
     </div>
@@ -1448,7 +1418,7 @@
       </div>
 
       <button class="help-close" id="helpClose">
-        START - TAP HERE OR SAY "START"
+        START - TAP ANYWHERE OR SAY "START"
       </button>
       <button
         class="help-close"
@@ -4639,7 +4609,7 @@
       function showHelp() {
         document.getElementById("help").classList.add("visible");
         speak(
-          "GuideDog automatically warns you about obstacles, stairs, walls, and doors. Tap the button to start.",
+          "GuideDog automatically warns you about obstacles, stairs, walls, and doors. Tap anywhere to start.",
           true,
         );
       }
@@ -4745,10 +4715,33 @@
           });
         document
           .getElementById("btnModeAssist")
-          .addEventListener("click", () => {
+          .addEventListener("click", (e) => {
+            // Prevent the parent tap-anywhere handler from also firing
+            // and immediately switching to guide mode.
+            e.stopPropagation();
             unlockAudio();
             startAssistMode();
           });
+
+        // Accessibility: blind users can't visually locate the START
+        // button, so any tap on the mode-select page that ISN'T the
+        // Sound & Captions button counts as "start GuideDog." This
+        // makes the page usable with no targeting required — a single
+        // tap anywhere launches the navigation mode. Sighted users
+        // can still tap the explicit buttons.
+        const ms = document.getElementById("modeSelect");
+        if (ms) {
+          ms.addEventListener("click", (e) => {
+            // If they tapped the explicit guide button, its own
+            // handler already fired — don't double-trigger.
+            if (e.target.closest("#btnModeGuide")) return;
+            // The Sound & Captions button calls stopPropagation, so
+            // this branch is defensive. Belt and suspenders.
+            if (e.target.closest("#btnModeAssist")) return;
+            unlockAudio();
+            startGuideMode();
+          });
+        }
         document
           .getElementById("btnAssistBack")
           .addEventListener("click", leaveAssistMode);
@@ -4864,6 +4857,18 @@
         document
           .getElementById("helpClose")
           .addEventListener("click", hideHelp);
+
+        // Tap-anywhere-to-start: a click on the help overlay itself
+        // counts as pressing START. Excludes the back-to-mode-select
+        // button and the colorblind toggle so those keep their own
+        // behaviour (using .closest so taps on a child of either still
+        // count as that control).
+        document.getElementById("help").addEventListener("click", (e) => {
+          if (e.target.closest("#helpBackToHome")) return;
+          if (e.target.closest("#colorblindToggleItem")) return;
+          hideHelp();
+        });
+
         const backBtn = document.getElementById("helpBackToHome");
         if (backBtn)
           backBtn.addEventListener("click", () => {
