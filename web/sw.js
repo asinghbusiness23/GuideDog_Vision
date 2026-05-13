@@ -1,4 +1,4 @@
-const CACHE = 'guidedog-v45';       // bumped — logo icon added, title rule removed
+const CACHE = 'guidedog-v48';       // bumped — homepage UX pass: mode cards, microinteractions, trust footer
 const CDN_CACHE = 'guidedog-cdn-v3'; // bumped — added YAMNet CDN URL
 
 const CDN_SCRIPTS = [

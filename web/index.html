@@ -820,7 +820,11 @@
       #modeSelect {
         position: fixed;
         inset: 0;
-        background: #0a0d12;
+        /* Slightly warmer near-black than the previous flat #0a0d12 so the
+           page doesn't read as a terminal screen. The hint of warmth in
+           the background lets the white text feel more like paper than
+           CRT phosphor. */
+        background: #11131a;
         z-index: 200;
         display: flex;
         align-items: center;
@@ -830,8 +834,12 @@
         padding: 32px 24px;
         padding-top: max(40px, env(safe-area-inset-top));
         padding-bottom: max(40px, env(safe-area-inset-bottom));
-        font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
-        color: #fff;
+        /* Humanist system stack — uses the OS's native UI font so the page
+           reads like the user's other apps rather than a tech-demo
+           terminal. Falls back through every reasonable sans family. */
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        color: #f3f4f6;
+        line-height: 1.55;
       }
       #modeSelect.hidden { display: none; }
 
@@ -846,102 +854,174 @@
         margin: auto 0;
       }
 
-      /* Title row — icon + wordmark, aligned to the same baseline so
-         the green dot above the D sits visually next to the wordmark
-         rather than floating above it. */
-      .ms-title {
-        display: flex;
-        align-items: center;
-        gap: clamp(14px, 2vw, 22px);
-        margin: 0 0 clamp(20px, 4vw, 36px);
-      }
-      .ms-logo {
-        width: clamp(56px, 10vw, 110px);
-        height: clamp(56px, 10vw, 110px);
-        flex-shrink: 0;
-        display: block;
-      }
+      /* ── Top block (wordmark / hero / sub) ─────────────────────── */
+      .ms-top { margin-bottom: clamp(28px, 5vw, 44px); }
       .ms-wordmark {
-        font-size: clamp(56px, 11vw, 120px);
+        font-size: clamp(44px, 8vw, 84px);
         line-height: 1.0;
-        font-weight: 700;
-        letter-spacing: -0.02em;
-        margin: 0;
-        color: #fff;
+        font-weight: 600;
+        letter-spacing: -0.03em;
+        margin: 0 0 20px;
+        color: #f5f7fa;
       }
-
       .ms-hero {
-        font-size: clamp(26px, 4.5vw, 48px);
-        line-height: 1.15;
-        font-weight: 400;
-        letter-spacing: -0.01em;
-        margin: 0 0 18px;
+        font-size: clamp(22px, 3.2vw, 34px);
+        line-height: 1.25;
+        font-weight: 500;
+        letter-spacing: -0.015em;
+        margin: 0 0 16px;
+        max-width: 720px;
+        color: #f5f7fa;
       }
       .ms-hero-accent { color: #48f; }
-
       .ms-sub {
-        font-size: clamp(15px, 1.5vw, 18px);
+        font-size: clamp(15px, 1.4vw, 18px);
+        line-height: 1.6;
+        color: rgba(245, 247, 250, 0.72);
+        margin: 0;
+        max-width: 560px;
+      }
+
+      /* ── Blind-user hint, positioned right above the cards ─────── */
+      .ms-blind-hint {
+        font-size: 14px;
         line-height: 1.55;
-        color: rgba(255, 255, 255, 0.65);
-        margin: 0 0 24px;
+        color: rgba(245, 247, 250, 0.6);
+        margin: 0 0 16px;
         max-width: 640px;
+        padding: 12px 16px;
+        background: rgba(72, 136, 255, 0.08);
+        border-left: 2px solid #48f;
+        border-radius: 0 6px 6px 0;
       }
 
-      .ms-features {
-        list-style: disc;
-        padding-left: 22px;
-        margin: 0 0 22px;
-        color: rgba(255, 255, 255, 0.85);
-        font-size: 15px;
-        line-height: 1.7;
-      }
-      .ms-features li { padding-left: 4px; }
-      .ms-features li::marker { color: #48f; }
-
-      .ms-actions {
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
+      /* ── Mode cards ────────────────────────────────────────────── */
+      .ms-cards {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
         margin-bottom: 28px;
       }
-      .ms-btn-primary,
-      .ms-btn-secondary {
+      .ms-card {
+        position: relative;
         font-family: inherit;
-        font-size: 15px;
-        font-weight: 600;
-        letter-spacing: 0.04em;
-        padding: 16px 26px;
-        border: 1px solid;
-        border-radius: 6px;
+        text-align: left;
+        color: #f5f7fa;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        border-radius: 14px;
+        padding: clamp(20px, 2.5vw, 28px);
         cursor: pointer;
         -webkit-tap-highlight-color: transparent;
-        transition: opacity 0.15s, background 0.15s, border-color 0.15s;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 200px;
+        transition:
+          border-color 0.18s ease,
+          background 0.18s ease,
+          transform 0.18s ease,
+          box-shadow 0.18s ease;
       }
-      .ms-btn-primary {
-        background: #48f;
-        border-color: #48f;
-        color: #000;
-      }
-      .ms-btn-primary:active { opacity: 0.85; }
-      .ms-btn-secondary {
-        background: transparent;
+      .ms-card:hover {
         border-color: rgba(255, 255, 255, 0.22);
-        color: #fff;
+        background: rgba(255, 255, 255, 0.05);
+        transform: translateY(-2px);
       }
-      .ms-btn-secondary:active { border-color: rgba(255, 255, 255, 0.5); }
+      .ms-card:active { transform: translateY(0); }
+      .ms-card:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(72, 136, 255, 0.45);
+      }
+      /* Primary card carries a soft blue undertone so a sighted user
+         can read which option is the default action at a glance. */
+      .ms-card-primary {
+        background: rgba(72, 136, 255, 0.08);
+        border-color: rgba(72, 136, 255, 0.35);
+      }
+      .ms-card-primary:hover {
+        background: rgba(72, 136, 255, 0.13);
+        border-color: rgba(72, 136, 255, 0.55);
+        box-shadow: 0 8px 30px -10px rgba(72, 136, 255, 0.35);
+      }
+      .ms-card-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.06);
+        color: #f5f7fa;
+        flex-shrink: 0;
+      }
+      .ms-card-primary .ms-card-icon {
+        background: rgba(72, 136, 255, 0.18);
+        color: #9cbcff;
+      }
+      .ms-card-icon svg { width: 24px; height: 24px; display: block; }
+      .ms-card-title {
+        font-size: clamp(22px, 2.2vw, 28px);
+        line-height: 1.1;
+        font-weight: 600;
+        letter-spacing: -0.015em;
+        margin: 0;
+        color: #f5f7fa;
+      }
+      .ms-card-desc {
+        font-size: 15px;
+        line-height: 1.55;
+        color: rgba(245, 247, 250, 0.7);
+        margin: 0;
+        flex: 1;
+      }
+      .ms-card-cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #9cbcff;
+        margin-top: 4px;
+      }
+      .ms-card-primary .ms-card-cta { color: #9cbcff; }
+      .ms-card-secondary .ms-card-cta { color: rgba(245, 247, 250, 0.85); }
+      .ms-card-cta svg {
+        width: 16px;
+        height: 16px;
+        transition: transform 0.18s ease;
+      }
+      .ms-card:hover .ms-card-cta svg { transform: translateX(3px); }
 
-      .ms-blind-hint {
+      /* ── Footer trust line ─────────────────────────────────────── */
+      .ms-footer {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0 14px;
         font-size: 13px;
-        line-height: 1.5;
-        color: rgba(255, 255, 255, 0.55);
-        margin: 0 0 22px;
-        max-width: 640px;
+        color: rgba(245, 247, 250, 0.5);
+        letter-spacing: 0.005em;
+      }
+      .ms-footer-sep { color: rgba(245, 247, 250, 0.25); }
+
+      /* On-load fade — settles in over 400ms after first paint
+         instead of slamming on. Keyed off the .ms-frame so it only
+         runs when modeSelect is actually showing. */
+      .ms-frame {
+        animation: msFadeIn 0.45s ease-out;
+      }
+      @keyframes msFadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .ms-frame { animation: none; }
+        .ms-card, .ms-card-cta svg { transition: none; }
       }
 
       @media (max-width: 640px) {
-        .ms-actions { flex-direction: column; }
-        .ms-btn-primary,
-        .ms-btn-secondary { width: 100%; text-align: center; }
+        .ms-cards { grid-template-columns: 1fr; }
+        .ms-card { min-height: 0; }
       }
 
       .mode-brand {
@@ -1218,41 +1298,80 @@
     <!-- ── MODE SELECT ── -->
     <div id="modeSelect">
       <div class="ms-frame">
-        <div class="ms-title">
-          <img src="logo.png" alt="" class="ms-logo" aria-hidden="true">
+        <header class="ms-top">
           <h1 class="ms-wordmark">GuideDog</h1>
-        </div>
-
-        <p class="ms-hero">
-          Eyes and Ears <span class="ms-hero-accent">when you need them</span>.
-        </p>
-
-        <p class="ms-sub">
-          Real time obstacle detection, sound detection, and live captions.
-        </p>
-
-        <ul class="ms-features" aria-label="Features">
-          <li>Free</li>
-          <li>No account</li>
-          <li>No data stored</li>
-        </ul>
+          <p class="ms-hero">
+            Eyes and ears,
+            <span class="ms-hero-accent">when you need them</span>.
+          </p>
+          <p class="ms-sub">
+            Real-time obstacle detection, sound awareness, and live captions
+            for a world that isn't always built for you.
+          </p>
+        </header>
 
         <p class="ms-blind-hint" id="msBlindHint" role="note">
-          Press Anywhere for Obstacle Detection or Press the Button for Captions and Sound Detection.
+          Tap anywhere on this page to start obstacle detection.
+          Use the second card for sound &amp; captions.
         </p>
 
-        <div class="ms-actions">
+        <div class="ms-cards">
           <button
-            class="ms-btn-primary"
+            class="ms-card ms-card-primary"
             id="btnModeGuide"
-            aria-label="Start GuideDog navigation mode. You can also tap anywhere on this page to start."
-          >&#9654; START GUIDEDOG</button>
+            aria-label="Start GuideDog obstacle detection. Camera watches the path ahead and warns about obstacles. You can also tap anywhere on this page."
+          >
+            <span class="ms-card-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </span>
+            <h2 class="ms-card-title">See</h2>
+            <p class="ms-card-desc">
+              Walk safely with real-time obstacle detection. Walls, stairs,
+              doors, and people, spoken aloud.
+            </p>
+            <span class="ms-card-cta" aria-hidden="true">
+              Start GuideDog
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14M13 6l6 6-6 6"/>
+              </svg>
+            </span>
+          </button>
+
           <button
-            class="ms-btn-secondary"
+            class="ms-card ms-card-secondary"
             id="btnModeAssist"
-            aria-label="Open sound detection and live captions mode"
-          >&darr; SOUND &amp; CAPTIONS</button>
+            aria-label="Open sound detection and live captions. The microphone listens for alarms, doorbells, sirens, and turns nearby speech into captions on screen."
+          >
+            <span class="ms-card-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 8a6 6 0 1 1 12 0c0 3-1.5 4.5-3 6s-2 3-2 4a3 3 0 0 1-3 3 3 3 0 0 1-3-3"/>
+                <path d="M9 9a3 3 0 0 1 6 0"/>
+              </svg>
+            </span>
+            <h2 class="ms-card-title">Hear</h2>
+            <p class="ms-card-desc">
+              Sound alerts and live captions. Catches alarms, doorbells, and
+              the conversations happening around you.
+            </p>
+            <span class="ms-card-cta" aria-hidden="true">
+              Sound &amp; Captions
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14M13 6l6 6-6 6"/>
+              </svg>
+            </span>
+          </button>
         </div>
+
+        <footer class="ms-footer" aria-label="About GuideDog">
+          <span>Free, forever</span>
+          <span class="ms-footer-sep" aria-hidden="true">&middot;</span>
+          <span>No account</span>
+          <span class="ms-footer-sep" aria-hidden="true">&middot;</span>
+          <span>Nothing stored</span>
+        </footer>
       </div>
     </div>
 
@@ -4671,12 +4790,18 @@
       }
 
       function startGuideMode() {
+        // Cancel the web-only welcome so the privacy-screen audio
+        // doesn't talk on top of "Welcome to GuideDog. Press anywhere…".
+        cancelWebWelcome();
         state.appMode = "guide";
         document.getElementById("modeSelect").classList.add("hidden");
         showPrivacyThenHelp();
       }
 
       function startAssistMode() {
+        // Same cleanup as guide mode — the welcome was for sighted
+        // navigation cues, not appropriate once they're inside.
+        cancelWebWelcome();
         state.appMode = "assist";
         document.getElementById("modeSelect").classList.add("hidden");
         document.getElementById("assistScreen").classList.add("visible");
@@ -4820,6 +4945,41 @@
       }
 
       // ========== INIT ==========
+      // Web-only welcome speech. The first thing a blind user lands on
+      // is the mode-select page; without this, they'd have no way to
+      // know what's on screen until they tap. iOS Safari blocks
+      // speechSynthesis without a user gesture, so on iOS the welcome
+      // silently no-ops and the tap-anywhere behaviour takes over
+      // immediately — which is the right outcome (the welcome would
+      // have been talked over by Guide mode startup anyway). On desktop
+      // and Android, the speech plays right after the page loads.
+      function speakWebWelcome() {
+        try {
+          // Defensive: speechSynthesis cancel clears any queued
+          // utterance from a prior session so we don't double-up.
+          speechSynthesis.cancel();
+          const u = new SpeechSynthesisUtterance(
+            "Welcome to GuideDog. Press anywhere on the page for obstacle detection, " +
+              "or the second button for sounds and captions."
+          );
+          u.rate = 0.98;
+          u.volume = 1.0;
+          u.lang = "en-US";
+          // Tag this utterance so we can recognise it later if needed.
+          u.dataset = { source: "web-welcome" };
+          speechSynthesis.speak(u);
+        } catch (e) {
+          /* speechSynthesis isn't available or blocked; silently skip */
+        }
+      }
+
+      // Cancel the web-only welcome the moment the user picks a mode.
+      // Idempotent — safe to call even if no welcome was ever spoken.
+      function cancelWebWelcome() {
+        if (isNative) return;
+        try { speechSynthesis.cancel(); } catch (e) {}
+      }
+
       async function init() {
         state.video = document.getElementById("video");
 
@@ -4827,6 +4987,13 @@
         showModeSelect();
         setupAssistButtons();
         initColorblind();
+
+        // Greet blind users so they know what page they're on. Native
+        // (Capacitor / iOS app) has its own welcome flow via privacy
+        // notice + help, so we gate by !isNative here.
+        if (!isNative) {
+          speakWebWelcome();
+        }
 
         // Load models in background so Guide mode is fast when chosen
         Promise.all([
