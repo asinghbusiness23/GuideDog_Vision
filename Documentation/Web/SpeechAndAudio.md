@@ -1,6 +1,6 @@
 # Web Speech and Audio
 
-## What makes this tricky
+## Technical Complexities
 
 iOS Safari is the most restrictive environment for browser audio. Several workarounds came out of testing and are now baked in.
 
