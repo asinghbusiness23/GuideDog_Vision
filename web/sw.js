@@ -1,4 +1,4 @@
-const CACHE = 'guidedog-v48';       // bumped — homepage UX pass: mode cards, microinteractions, trust footer
+const CACHE = 'guidedog-v49';       // bumped — fix mode cards in Safari (h2/p inside button auto-closed the button)
 const CDN_CACHE = 'guidedog-cdn-v3'; // bumped — added YAMNet CDN URL
 
 const CDN_SCRIPTS = [

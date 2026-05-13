@@ -961,6 +961,7 @@
       }
       .ms-card-icon svg { width: 24px; height: 24px; display: block; }
       .ms-card-title {
+        display: block;
         font-size: clamp(22px, 2.2vw, 28px);
         line-height: 1.1;
         font-weight: 600;
@@ -969,6 +970,7 @@
         color: #f5f7fa;
       }
       .ms-card-desc {
+        display: block;
         font-size: 15px;
         line-height: 1.55;
         color: rgba(245, 247, 250, 0.7);
@@ -1327,11 +1329,11 @@
                 <circle cx="12" cy="12" r="3"/>
               </svg>
             </span>
-            <h2 class="ms-card-title">See</h2>
-            <p class="ms-card-desc">
+            <span class="ms-card-title">See</span>
+            <span class="ms-card-desc">
               Walk safely with real-time obstacle detection. Walls, stairs,
               doors, and people, spoken aloud.
-            </p>
+            </span>
             <span class="ms-card-cta" aria-hidden="true">
               Start GuideDog
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1351,11 +1353,11 @@
                 <path d="M9 9a3 3 0 0 1 6 0"/>
               </svg>
             </span>
-            <h2 class="ms-card-title">Hear</h2>
-            <p class="ms-card-desc">
+            <span class="ms-card-title">Hear</span>
+            <span class="ms-card-desc">
               Sound alerts and live captions. Catches alarms, doorbells, and
               the conversations happening around you.
-            </p>
+            </span>
             <span class="ms-card-cta" aria-hidden="true">
               Sound &amp; Captions
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
