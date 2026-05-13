@@ -820,35 +820,136 @@
       #modeSelect {
         position: fixed;
         inset: 0;
-        background:
-          radial-gradient(1200px 800px at 50% -10%, rgba(125, 158, 255, 0.08), transparent 60%),
-          radial-gradient(900px 700px at 50% 110%, rgba(78, 211, 161, 0.06), transparent 65%),
-          var(--bg);
+        background: #0a0d12;
         z-index: 200;
         display: flex;
-        flex-direction: column;
         align-items: center;
-        /* Centre when the viewport has room, but allow scrolling on
-           short screens (small phones in landscape, split-screen iPad,
-           browsers with toolbars eating viewport height). */
-        justify-content: flex-start;
+        justify-content: center;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
         padding: 32px 24px;
-        padding-top: max(56px, env(safe-area-inset-top));
+        padding-top: max(40px, env(safe-area-inset-top));
         padding-bottom: max(40px, env(safe-area-inset-bottom));
+        font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+        color: #fff;
       }
-      /* Inner wrapper centres content vertically while remaining
-         scrollable when content exceeds viewport height. */
-      .mode-inner {
-        margin: auto 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
+      #modeSelect.hidden { display: none; }
+
+      /* ── Mode-select terminal-mono landing layout ───────────────────
+         Replaces the older `.mode-card` grid. Two CTAs (start guide,
+         open assist) sit under the hero. The whole frame is bordered
+         so it reads as a discrete panel rather than a full-bleed page. */
+      .ms-frame {
         width: 100%;
+        max-width: 1100px;
+        background: #0e1115;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 38px clamp(24px, 4vw, 44px);
+        margin: auto 0;
       }
-      #modeSelect.hidden {
-        display: none;
+
+      .ms-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+        letter-spacing: 0.10em;
+        color: rgba(255, 255, 255, 0.50);
+        margin-bottom: 18px;
+      }
+      .ms-brand { display: flex; align-items: center; gap: 10px; }
+      .ms-dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: #48f;
+        flex-shrink: 0;
+      }
+      .ms-brand-name { letter-spacing: 0.12em; }
+
+      .ms-rule {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.10);
+        margin-bottom: clamp(28px, 5vw, 44px);
+      }
+
+      .ms-hero {
+        font-size: clamp(34px, 6.5vw, 76px);
+        line-height: 1.1;
+        font-weight: 400;
+        letter-spacing: -0.01em;
+        margin: 0 0 28px;
+      }
+      .ms-hero-line { display: block; }
+      .ms-hero-accent { color: #48f; }
+
+      .ms-sub {
+        font-size: clamp(15px, 1.5vw, 18px);
+        line-height: 1.55;
+        color: rgba(255, 255, 255, 0.65);
+        margin: 0 0 36px;
+        max-width: 640px;
+      }
+
+      .ms-actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: clamp(40px, 6vw, 56px);
+      }
+      .ms-btn-primary,
+      .ms-btn-secondary {
+        font-family: inherit;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        padding: 16px 26px;
+        border: 1px solid;
+        border-radius: 6px;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        transition: opacity 0.15s, background 0.15s, border-color 0.15s;
+      }
+      .ms-btn-primary {
+        background: #48f;
+        border-color: #48f;
+        color: #000;
+      }
+      .ms-btn-primary:active { opacity: 0.85; }
+      .ms-btn-secondary {
+        background: transparent;
+        border-color: rgba(255, 255, 255, 0.22);
+        color: #fff;
+      }
+      .ms-btn-secondary:active { border-color: rgba(255, 255, 255, 0.5); }
+
+      .ms-stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+      .ms-stat {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 6px;
+        padding: 14px 16px;
+      }
+      .ms-stat-label {
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        color: rgba(255, 255, 255, 0.4);
+        margin-bottom: 6px;
+      }
+      .ms-stat-value {
+        font-size: 15px;
+        color: #fff;
+      }
+
+      @media (max-width: 640px) {
+        .ms-header { font-size: 11px; letter-spacing: 0.08em; }
+        .ms-tagline-top { display: none; }
+        .ms-stats { grid-template-columns: 1fr; }
+        .ms-actions { flex-direction: column; }
+        .ms-btn-primary,
+        .ms-btn-secondary { width: 100%; text-align: center; }
       }
 
       .mode-brand {
@@ -1124,60 +1225,54 @@
   <body>
     <!-- ── MODE SELECT ── -->
     <div id="modeSelect">
-      <div class="mode-inner">
-      <div class="mode-brand">
-        <div class="mode-logo">GuideDog</div>
-      </div>
-      <div class="mode-tagline">
-        Real-time navigation and sound awareness for blind, low vision,
-        and deaf users. Pick the mode that fits.
-      </div>
-      <div class="mode-cards">
-        <button
-          class="mode-card guide"
-          id="btnModeGuide"
-          aria-label="GuideDog navigation mode"
-        >
-          <div class="mode-card-icon">
-            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="9"/>
-              <path d="M8 13 L11 16 L16 9"/>
-            </svg>
+      <div class="ms-frame">
+        <div class="ms-header">
+          <div class="ms-brand">
+            <span class="ms-dot" aria-hidden="true"></span>
+            <span class="ms-brand-name">GUIDEDOG</span>
           </div>
-          <div class="mode-card-title">GuideDog</div>
-          <div class="mode-card-desc">
-            Obstacle detection, AI guidance, and real-time hazard alerts to help
-            you navigate safely.
+          <div class="ms-tagline-top">ACCESSIBILITY · NAVIGATION</div>
+        </div>
+
+        <div class="ms-rule" aria-hidden="true"></div>
+
+        <h1 class="ms-hero">
+          <span class="ms-hero-line">Eyes when you need them.</span>
+          <span class="ms-hero-line ms-hero-accent">Ears when you don't.</span>
+        </h1>
+
+        <p class="ms-sub">
+          Real-time obstacle detection, sound awareness, and live captions.
+          Free. No account. Works on the phone in your pocket.
+        </p>
+
+        <div class="ms-actions">
+          <button
+            class="ms-btn-primary"
+            id="btnModeGuide"
+            aria-label="Start GuideDog navigation mode"
+          >&#9654; START GUIDEDOG</button>
+          <button
+            class="ms-btn-secondary"
+            id="btnModeAssist"
+            aria-label="Open sound detection and captions mode"
+          >&darr; SOUND &amp; CAPTIONS</button>
+        </div>
+
+        <div class="ms-stats">
+          <div class="ms-stat">
+            <div class="ms-stat-label">DETECTION</div>
+            <div class="ms-stat-value">On-device</div>
           </div>
-          <div class="mode-card-tags">
-            <span class="mode-tag">Obstacle Detection</span>
-            <span class="mode-tag">AI Guide</span>
-            <span class="mode-tag">Voice Commands</span>
+          <div class="ms-stat">
+            <div class="ms-stat-label">CAPTIONS</div>
+            <div class="ms-stat-value">Live</div>
           </div>
-        </button>
-        <button
-          class="mode-card assist"
-          id="btnModeAssist"
-          aria-label="Sound and caption assist mode"
-        >
-          <div class="mode-card-icon">
-            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M5 12 L8 12 L11 7 L11 17 L8 12"/>
-              <path d="M14 9 Q17 12 14 15"/>
-              <path d="M16 6 Q21 12 16 18"/>
-            </svg>
+          <div class="ms-stat">
+            <div class="ms-stat-label">DATA</div>
+            <div class="ms-stat-value">Nothing stored</div>
           </div>
-          <div class="mode-card-title">Sound &amp; Captions</div>
-          <div class="mode-card-desc">
-            Live closed captions for speech nearby, plus automatic detection of
-            alarms, sirens, dogs, and more.
-          </div>
-          <div class="mode-card-tags">
-            <span class="mode-tag">Live Captions</span>
-            <span class="mode-tag">Sound Detection</span>
-          </div>
-        </button>
-      </div>
+        </div>
       </div>
     </div>
 
@@ -1367,8 +1462,6 @@
         ← Back to Mode Select
       </button>
     </div>
-
-    <div class="version-tag" id="versionTag">build 25e</div>
 
     <div class="app">
       <video id="video" autoplay playsinline muted></video>
