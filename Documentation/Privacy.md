@@ -2,7 +2,6 @@
 
 **GuideDog Vision**
 
-Last updated: April 7, 2026
 
 ## What gets collected
 
