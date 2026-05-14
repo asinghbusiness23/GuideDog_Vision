@@ -4,7 +4,7 @@ GuideDog was built to act as a virtual guide dog for the visually and audibly im
 
 | App Store | Website |
 |:---:|:---:|
-| <img src="qr-app.png" alt="QR code for GuideDog Vision on the App Store" width="240"> | <img src="qr-website.png" alt="QR code for GuideDog Vision website" width="240"> |
+| <img src="qr-app.png" alt="QR code for GuideDog on the App Store" width="240"> | <img src="qr-website.png" alt="QR code for GuideDog website" width="240"> |
 | Scan to download on iPhone | Scan to launch in your browser |
 
 ## Why This Was Built
@@ -27,9 +27,21 @@ A single guide dog requires close to twenty-four months of training, yet merely 
 
 Though placed successfully, movement still faces limits with guide dogs. Certain locations refuse entry to service animals, while others demand arrangements the handler might lack time to make. Care for the animal involves steady housing, daily activity, medical visits, plus regular cleaning routines. Health maintenance demands consistent effort over years, turning each pairing into a lasting duty.
 
+### How many people are affected by hearing loss
+
+Hearing loss runs parallel to vision loss in scale and impact. **1.5 billion people** worldwide live with some form of hearing loss according to the World Health Organization. About **430 million** of them face disabling hearing loss that needs rehabilitation today [8]. The trajectory ahead is steeper than for vision. By 2050, **2.5 billion people** are projected to have hearing loss of some kind, with **700 million** needing daily rehabilitation [8].
+
+The downstream costs follow the same pattern. Unaddressed hearing loss costs the global economy roughly **$980 billion per year** through lost productivity and added health spending [8]. People with untreated hearing loss face higher rates of unemployment, depression, and social isolation, plus a measurably increased risk of dementia later in life [9].
+
+### The hearing aid gap
+
+Hearing aids work, but access is the problem. In the United States, only about **17 percent** of adults who could benefit from a hearing aid actually use one [9]. Cost is the biggest barrier. A single pair runs **$1,000 to $6,000**, and most insurance plans, Medicare included, do not cover them [10]. Cochlear implants, the next step up for severe loss, cost **$30,000 to $50,000 per ear** without coverage [11].
+
+The technology gap matters beyond conversation. Audible alerts (smoke alarms, doorbells, sirens, car horns, someone calling a name) are part of the safety infrastructure built around assuming everyone can hear. When that assumption breaks, the world becomes harder to move through.
+
 ### Where this app fits
 
-GuideDog Vision is not a guide dog. A trained animal makes its own safety calls and is a companion. Software cannot do either of those things. What software can do is run on a phone someone already owns, watch the scene in front of them, and tell them about it. This enables it to help with the navigation that the visually impaired would face,but with much more accessability and ease of access.
+GuideDog is not a guide dog. A trained animal makes its own safety calls and is a companion. Software cannot do either of those things. What software can do is run on a phone someone already owns, watch the scene in front of them, listen for the sounds around them, and report back. The app does both. The Sound and Captions mode classifies environmental audio (alarms, sirens, doorbells, conversation) and turns nearby speech into live captions, while the obstacle detection side handles the visual layer. This makes both visual and hearing assistance available at a scale guide dogs cannot reach, on hardware people already own.
 
 ---
 
@@ -42,6 +54,10 @@ GuideDog Vision is not a guide dog. A trained animal makes its own safety calls 
 5. Dogster. *10 Service Dog Statistics: Training, Costs & FAQ.* https://www.dogster.com/statistics/service-dog-statistics
 6. Hepper Pet Resources. *How Much is a Guide Dog: Cost Breakdown & FAQs.* https://articles.hepper.com/how-much-is-a-guide-dog/
 7. All About Vision. *How to Get a Guide Dog: A Resource Guide.* https://www.allaboutvision.com/conditions/blindness-low-vision/how-to-get-a-guide-dog/
+8. World Health Organization. *Deafness and hearing loss fact sheet.* https://www.who.int/news-room/fact-sheets/detail/deafness-and-hearing-loss
+9. National Institute on Deafness and Other Communication Disorders. *Quick Statistics About Hearing, Balance, & Dizziness.* https://www.nidcd.nih.gov/health/statistics/quick-statistics-hearing
+10. National Council on Aging. *How Much Do Hearing Aids Cost in 2024?* https://www.ncoa.org/adviser/hearing-aids/hearing-aid-cost/
+11. Healthline. *How Much Do Cochlear Implants Cost?* https://www.healthline.com/health/cochlear-implant-cost
 
 ## Overview
 

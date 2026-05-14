@@ -1,6 +1,6 @@
 # Custom Model Training Source
 
-The PyTorch source used to train BlindGuideNav, the custom 55 class object detection model that ships with GuideDog Vision. Stored here as a reference, not wired into either the iOS app or the website. Both of those load the precompiled artifacts (`CustomModel/BlindGuideNav.mlpackage` for the app, the same model for the website) and never touch the training code.
+The PyTorch source used to train BlindGuideNav, the custom 55 class object detection model that ships with GuideDog. Stored here as a reference, not wired into either the iOS app or the website. Both of those load the precompiled artifacts (`CustomModel/BlindGuideNav.mlpackage` for the app, the same model for the website) and never touch the training code.
 
 ## What's in here
 
